@@ -1,0 +1,14 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="24" fill="#1F1F1F"/>
+  <path d="M32 40C32 36.6863 34.6863 34 38 34H90C93.3137 34 96 36.6863 96 40V72C96 75.3137 93.3137 78 90 78H38C34.6863 78 32 75.3137 32 72V40Z" fill="#FF0000"/>
+  <path d="M56 50L76 62L56 74V50Z" fill="white"/>
+  
+  <!-- Y -->
+  <path d="M42 90L52 106H46L40 96L34 106H28L38 90V84H42V90Z" fill="white"/>
+  
+  <!-- T -->
+  <path d="M56 84H72V90H68V106H60V90H56V84Z" fill="white"/>
+  
+  <!-- + -->
+  <path d="M84 90H78V84H84V78H90V84H96V90H90V96H84V90Z" fill="#FF0000"/>
+</svg> 

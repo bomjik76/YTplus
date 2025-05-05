@@ -1,0 +1,60 @@
+/* Minimal CSS for YouTube Speed Control extension */
+
+/* Custom styles for the extension */
+
+/* YT+ Extension Styles */
+
+/* Speed indicator overlay */
+.yt-plus-speed-indicator {
+  position: absolute;
+  bottom: 70px;
+  right: 20px;
+  background-color: rgba(31, 31, 31, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border: 1px solid #FF0000;
+}
+
+.yt-plus-speed-indicator.visible {
+  opacity: 1;
+}
+
+.yt-plus-speed-indicator .type {
+  color: #FF0000;
+  font-size: 12px;
+}
+
+/* Shorts enhanced controls */
+.yt-plus-shorts-controls {
+  position: absolute;
+  bottom: 80px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 9999;
+}
+
+.yt-plus-shorts-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(31, 31, 31, 0.8);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  cursor: pointer;
+  border: 1px solid #FF0000;
+}
+
+.yt-plus-shorts-button:hover {
+  background-color: #FF0000;
+} 
