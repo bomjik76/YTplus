@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YT+</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="popup-header">
+      <div class="header-title-section">
+        <img src="../img/ytplus.png" alt="Logo" class="header-icon"/>
+      </div>
+      <div class="header-controls">
+        <label class="status-toggle-label" for="status-toggle" title="Toggle Extension On/Off">
+          <div class="toggle-switch">
+            <input type="checkbox" id="status-toggle" />
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+    </header>
+    <div id="error-message"></div>
+    <div style="margin: 12px 0 0 0; padding: 8px 12px; background: #222; color: #fff; border-radius: 8px; font-size: 14px;">
+      <b>Ускорение Shorts:</b><br>
+      <span>Переключить скорость можно кнопкой или сочетанием клавиш <b>Shift+S</b> (англ) / <b>Shift+Ы</b> (рус).</span>
+    </div>
+    <script src="../dist/script.js"></script>
+  </body>
+</html>

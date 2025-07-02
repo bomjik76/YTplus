@@ -1,43 +1,26 @@
 {
-  "manifest_version": 3,
-  "name": "YT+",
-  "version": "1.0",
-  "description": "Enhanced YouTube experience with custom playback speed, auto fullscreen and Shorts scrolling",
-  "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
-  },
-  "permissions": [
-    "storage",
-    "tabs"
-  ],
-  "host_permissions": [
-    "*://*.youtube.com/*"
-  ],
-  "background": {
-    "service_worker": "js/background.js"
-  },
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
-    }
-  },
-  "content_scripts": [
-    {
-      "matches": ["*://*.youtube.com/*"],
-      "js": ["js/content.js"],
-      "css": ["css/content.css"],
-      "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["js/injected.js"],
-      "matches": ["*://*.youtube.com/*"]
-    }
-  ]
-} 
+   "manifest_version": 3,
+   "name": "YT+",
+   "version": "1.0.0",
+   "content_scripts": [
+      {
+         "matches": ["https://www.youtube.com/*"],
+         "js": ["./dist/content.js"]
+      }
+   ],
+   "permissions": ["tabs", "storage"],
+   "icons": {
+      "16": "img/ytplus.png",
+      "48": "img/ytplus.png",
+      "128": "img/ytplus.png"
+   },
+   "background": {
+      "service_worker": "./dist/background.js"
+   },
+   "action": {
+      "default_popup": "./popup/popup.html",
+      "default_icon": "./img/ytplus.png",
+      "default_title": "YT+"
+   },
+   "description": "Auto-scroll YouTube Shorts"
+}
