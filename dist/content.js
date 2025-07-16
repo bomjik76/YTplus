@@ -33,6 +33,13 @@ const SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
 const SPEED_TOGGLE_SHORTCUT = ['shift', 's']; // Hardcoded for now
 let pressedKeys = [];
 // ------------------------------
+// NORMAL VIDEO SPEED TOGGLE FEATURE
+// ------------------------------
+let normalVideoSpeedState = 1; // 1x или выбранная скорость
+let normalSelectedSpeed = 2; // скорость для ускорения по умолчанию
+let normalSpeedOverlay = null;
+const NORMAL_SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
+// ------------------------------
 // MAIN FUNCTIONS
 // ------------------------------
 function startAutoScrolling() {
@@ -327,7 +334,7 @@ function showSpeedOverlay(speed) {
     }
     speedOverlay.textContent = speed + 'x';
     if (speed !== 1) {
-        speedOverlay.style.background = 'rgba(255,80,80,0.95)';
+        speedOverlay.style.background = 'rgb(255, 0, 51)';
         speedOverlay.style.borderRadius = '50%';
         speedOverlay.style.width = '48px';
         speedOverlay.style.height = '48px';
@@ -457,6 +464,82 @@ function removeSpeedUI() {
             e.preventDefault();
             scrollDirection = -1;
             scrollToNextShort(currentShortId);
+        }
+    });
+})();
+
+// ------------------------------
+// NORMAL VIDEO SPEED TOGGLE FEATURE
+// ------------------------------
+function setNormalVideoPlaybackSpeed(speed) {
+    const video = document.querySelector('video');
+    if (video) {
+        video.playbackRate = speed;
+        normalVideoSpeedState = speed;
+        showNormalSpeedOverlay(speed);
+    }
+}
+
+function toggleNormalVideoPlaybackSpeed() {
+    const video = document.querySelector('video');
+    if (!video) return;
+    if (normalVideoSpeedState === 1) {
+        setNormalVideoPlaybackSpeed(normalSelectedSpeed);
+    } else {
+        setNormalVideoPlaybackSpeed(1);
+    }
+}
+
+function showNormalSpeedOverlay(speed) {
+    if (!normalSpeedOverlay) {
+        normalSpeedOverlay = document.createElement('div');
+        normalSpeedOverlay.style.position = 'fixed';
+        normalSpeedOverlay.style.top = '80px';
+        normalSpeedOverlay.style.left = '40px';
+        normalSpeedOverlay.style.zIndex = '9999';
+        normalSpeedOverlay.style.color = '#fff';
+        normalSpeedOverlay.style.fontWeight = 'bold';
+        normalSpeedOverlay.style.fontSize = '18px';
+        normalSpeedOverlay.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+        normalSpeedOverlay.style.transition = 'opacity 0.3s';
+        normalSpeedOverlay.style.pointerEvents = 'none';
+        normalSpeedOverlay.style.display = 'flex';
+        normalSpeedOverlay.style.alignItems = 'center';
+        normalSpeedOverlay.style.justifyContent = 'center';
+        document.body.appendChild(normalSpeedOverlay);
+    }
+    normalSpeedOverlay.textContent = speed + 'x';
+    if (speed !== 1) {
+        normalSpeedOverlay.style.background = 'rgb(255, 0, 51)';
+        normalSpeedOverlay.style.borderRadius = '50%';
+        normalSpeedOverlay.style.width = '48px';
+        normalSpeedOverlay.style.height = '48px';
+        normalSpeedOverlay.style.padding = '0';
+    } else {
+        normalSpeedOverlay.style.background = 'rgba(0,0,0,0.7)';
+        normalSpeedOverlay.style.borderRadius = '20px';
+        normalSpeedOverlay.style.width = 'auto';
+        normalSpeedOverlay.style.height = 'auto';
+        normalSpeedOverlay.style.padding = '6px 14px';
+    }
+    normalSpeedOverlay.style.opacity = '1';
+    clearTimeout(normalSpeedOverlay._hideTimeout);
+    normalSpeedOverlay._hideTimeout = setTimeout(() => {
+        if (normalSpeedOverlay) normalSpeedOverlay.style.opacity = '0';
+    }, 1200);
+}
+// Listen for Shift+S for normal videos
+(function normalVideoSpeedShortcutListener() {
+    document.addEventListener('keydown', function(e) {
+        // Поддержка Shift+S (англ) и Shift+ы (рус)
+        if (e.shiftKey && (e.key === 'S' || e.key === 's' || e.key === 'ы' || e.key === 'Ы')) {
+            if (!isShortsPage()) {
+                const video = document.querySelector('video');
+                if (video) {
+                    e.preventDefault();
+                    toggleNormalVideoPlaybackSpeed();
+                }
+            }
         }
     });
 })();
