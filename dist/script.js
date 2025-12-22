@@ -19,14 +19,43 @@ const amountOfPlaysInput = document.querySelector("#amountOfPlaysInput");
 const scrollOnCommentsInput = document.querySelector("#scrollOnCommentsInput");
 const scrollOnNoTagsInput = document.querySelector("#scrollOnNoTagsInput");
 const additionalScrollDelayInput = document.querySelector("#additionalScrollDelayInput");
+const shortsSpeedSelect = document.querySelector("#shorts-speed-select");
+// Progress Bar Elements
+const progressBarEnabled = document.querySelector("#progress-bar-enabled");
+const progressBarSettings = document.querySelector("#progress-bar-settings");
+const progressColorInput = document.querySelector("#progress-color");
+const scrubberColorInput = document.querySelector("#scrubber-color");
+const bufferColorInput = document.querySelector("#buffer-color");
+const resetProgressColorsBtn = document.querySelector("#reset-progress-colors");
+const scrubberTypeColor = document.querySelector("#scrubber-type-color");
+const scrubberTypeImage = document.querySelector("#scrubber-type-image");
+const scrubberColorContainer = document.querySelector("#scrubber-color-container");
+const scrubberImageContainer = document.querySelector("#scrubber-image-container");
+const scrubberImageInput = document.querySelector("#scrubber-image");
+const scrubberImagePreview = document.querySelector("#scrubber-image-preview");
+const removeScrubberImageBtn = document.querySelector("#remove-scrubber-image");
+const scrubberImageSizeInput = document.querySelector("#scrubber-image-size");
+const scrubberImageSizeValue = document.querySelector("#scrubber-image-size-value");
 // Navigation Elements
 const navItems = document.querySelectorAll(".nav-item");
 const contentPanels = document.querySelectorAll(".content-panel");
 // Call Functions
 document.addEventListener('DOMContentLoaded', () => {
+    // Проверяем, что все элементы найдены
+    console.log("[YT+] Initializing popup...");
+    console.log("[YT+] progressBarEnabled found:", !!progressBarEnabled);
+    console.log("[YT+] progressBarSettings found:", !!progressBarSettings);
+    
     getAllSettingsForPopup();
     setupNavigation();
     setupEventListeners();
+    
+    // Дополнительная проверка после небольшой задержки
+    setTimeout(() => {
+        if (!progressBarEnabled) {
+            console.error("[YT+] progressBarEnabled still not found after initialization!");
+        }
+    }, 100);
 });
 // Listens to toggle button click
 document.onclick = (e) => {
@@ -146,10 +175,328 @@ function setupEventListeners() {
     if (scrollOnNoTagsInput) {
         scrollOnNoTagsInput.addEventListener("change", handleCheckboxChange("scrollOnNoTags"));
     }
+    // Shorts Speed Select
+    if (shortsSpeedSelect) {
+        shortsSpeedSelect.addEventListener("change", (e) => {
+            const speed = parseFloat(e.target.value);
+            chrome.storage.local.set({ shortsSelectedSpeed: speed });
+        });
+    }
+    // Progress Bar Settings
+    if (progressBarEnabled) {
+        // Обработчик изменения состояния переключателя
+        const handleProgressBarToggle = (e) => {
+            const enabled = e.target.checked;
+            console.log("[YT+] Progress bar toggle changed:", enabled);
+            if (progressBarSettings) {
+                progressBarSettings.style.display = enabled ? "block" : "none";
+            }
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    bufferColor: "#ffffff",
+                    enabled: false
+                };
+                colors.enabled = enabled;
+                chrome.storage.local.set({ progressBarColors: colors }, () => {
+                    console.log("[YT+] Progress bar colors saved:", colors);
+                });
+            });
+        };
+        
+        progressBarEnabled.addEventListener("change", handleProgressBarToggle);
+        progressBarEnabled.addEventListener("click", (e) => {
+            // Дополнительная обработка клика для надежности
+            console.log("[YT+] Progress bar clicked, checked:", e.target.checked);
+        });
+        
+        console.log("[YT+] Progress bar toggle event listener attached");
+    } else {
+        console.error("[YT+] progressBarEnabled element not found! Retrying...");
+        // Попытка найти элемент еще раз через небольшую задержку
+        setTimeout(() => {
+            const retryElement = document.querySelector("#progress-bar-enabled");
+            if (retryElement) {
+                console.log("[YT+] Found progressBarEnabled on retry");
+                retryElement.addEventListener("change", (e) => {
+                    const enabled = e.target.checked;
+                    if (progressBarSettings) {
+                        progressBarSettings.style.display = enabled ? "block" : "none";
+                    }
+                    chrome.storage.local.get(["progressBarColors"], (result) => {
+                        const colors = result.progressBarColors || {
+                            progressColor: "#ff0000",
+                            scrubberColor: "#ff0000",
+                            bufferColor: "#ffffff",
+                            enabled: false
+                        };
+                        colors.enabled = enabled;
+                        chrome.storage.local.set({ progressBarColors: colors });
+                    });
+                });
+            }
+        }, 200);
+    }
+    if (progressColorInput) {
+        progressColorInput.addEventListener("input", (e) => {
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    bufferColor: "#ffffff",
+                    enabled: true
+                };
+                colors.progressColor = e.target.value;
+                chrome.storage.local.set({ progressBarColors: colors });
+            });
+        });
+    }
+    // Переключение между цветом и изображением для точки воспроизведения
+    if (scrubberTypeColor && scrubberTypeImage) {
+        const handleScrubberTypeChange = (type) => {
+            if (type === "color") {
+                if (scrubberColorContainer) scrubberColorContainer.style.display = "block";
+                if (scrubberImageContainer) scrubberImageContainer.style.display = "none";
+            } else {
+                if (scrubberColorContainer) scrubberColorContainer.style.display = "none";
+                if (scrubberImageContainer) scrubberImageContainer.style.display = "block";
+            }
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    scrubberImage: null,
+                    scrubberType: "color",
+                    bufferColor: "#ffffff",
+                    enabled: true
+                };
+                colors.scrubberType = type;
+                chrome.storage.local.set({ progressBarColors: colors });
+            });
+        };
+        
+        scrubberTypeColor.addEventListener("change", (e) => {
+            if (e.target.checked) handleScrubberTypeChange("color");
+        });
+        scrubberTypeImage.addEventListener("change", (e) => {
+            if (e.target.checked) handleScrubberTypeChange("image");
+        });
+    }
+    
+    if (scrubberColorInput) {
+        scrubberColorInput.addEventListener("input", (e) => {
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    bufferColor: "#ffffff",
+                    enabled: true
+                };
+                colors.scrubberColor = e.target.value;
+                chrome.storage.local.set({ progressBarColors: colors });
+            });
+        });
+    }
+    
+    // Обработка загрузки изображения для точки воспроизведения
+    if (scrubberImageInput) {
+        scrubberImageInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const imageDataUrl = event.target.result;
+                    // Показываем превью
+                    if (scrubberImagePreview) {
+                        scrubberImagePreview.innerHTML = `<img src="${imageDataUrl}" style="max-width: 100%; max-height: 100px; border-radius: 4px;" />`;
+                    }
+                    if (removeScrubberImageBtn) {
+                        removeScrubberImageBtn.style.display = "block";
+                    }
+                    // Сохраняем в storage
+                    chrome.storage.local.get(["progressBarColors"], (result) => {
+                        const colors = result.progressBarColors || {
+                            progressColor: "#ff0000",
+                            scrubberColor: "#ff0000",
+                            scrubberImage: null,
+                            scrubberImageSize: 40,
+                            scrubberType: "color",
+                            bufferColor: "#ffffff",
+                            enabled: true
+                        };
+                        colors.scrubberImage = imageDataUrl;
+                        colors.scrubberType = "image";
+                        // Устанавливаем размер по умолчанию, если его нет
+                        if (!colors.scrubberImageSize) {
+                            colors.scrubberImageSize = 40;
+                        }
+                        chrome.storage.local.set({ progressBarColors: colors });
+                        // Обновляем радио-кнопку и ползунок размера
+                        if (scrubberTypeImage) scrubberTypeImage.checked = true;
+                        if (scrubberTypeColor) scrubberTypeColor.checked = false;
+                        if (scrubberColorContainer) scrubberColorContainer.style.display = "none";
+                        if (scrubberImageContainer) scrubberImageContainer.style.display = "block";
+                        if (scrubberImageSizeInput) {
+                            scrubberImageSizeInput.value = colors.scrubberImageSize || 40;
+                        }
+                        if (scrubberImageSizeValue) {
+                            scrubberImageSizeValue.textContent = colors.scrubberImageSize || 40;
+                        }
+                    });
+                };
+                reader.readAsDataURL(file);
+            } else {
+                if (errMsg) {
+                    errMsg.innerText = "Пожалуйста, выберите изображение";
+                    setTimeout(() => (errMsg.innerText = ""), 3000);
+                }
+            }
+        });
+    }
+    
+    // Удаление изображения точки воспроизведения
+    if (removeScrubberImageBtn) {
+        removeScrubberImageBtn.addEventListener("click", () => {
+            if (scrubberImagePreview) {
+                scrubberImagePreview.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.85rem;">Превью изображения</span>';
+            }
+            if (scrubberImageInput) {
+                scrubberImageInput.value = "";
+            }
+            if (removeScrubberImageBtn) {
+                removeScrubberImageBtn.style.display = "none";
+            }
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    bufferColor: "#ffffff",
+                    enabled: true
+                };
+                colors.scrubberImage = null;
+                colors.scrubberType = "color";
+                chrome.storage.local.set({ progressBarColors: colors });
+                // Переключаем на цвет
+                if (scrubberTypeColor) scrubberTypeColor.checked = true;
+                if (scrubberTypeImage) scrubberTypeImage.checked = false;
+                if (scrubberColorContainer) scrubberColorContainer.style.display = "block";
+                if (scrubberImageContainer) scrubberImageContainer.style.display = "none";
+            });
+        });
+    }
+    
+    // Обработка изменения размера изображения точки воспроизведения
+    if (scrubberImageSizeInput) {
+        scrubberImageSizeInput.addEventListener("input", (e) => {
+            const size = parseInt(e.target.value);
+            if (scrubberImageSizeValue) {
+                scrubberImageSizeValue.textContent = size;
+            }
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    scrubberImage: null,
+                    scrubberImageSize: 40,
+                    scrubberType: "color",
+                    bufferColor: "#ffffff",
+                    enabled: true
+                };
+                colors.scrubberImageSize = size;
+                chrome.storage.local.set({ progressBarColors: colors });
+            });
+        });
+    }
+    if (bufferColorInput) {
+        bufferColorInput.addEventListener("input", (e) => {
+            chrome.storage.local.get(["progressBarColors"], (result) => {
+                const colors = result.progressBarColors || {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    bufferColor: "#ffffff",
+                    enabled: true
+                };
+                colors.bufferColor = e.target.value;
+                chrome.storage.local.set({ progressBarColors: colors });
+            });
+        });
+    }
+    if (resetProgressColorsBtn) {
+        resetProgressColorsBtn.addEventListener("click", () => {
+            const defaultColors = {
+                progressColor: "#ff0000",
+                scrubberColor: "#ff0000",
+                scrubberImage: null,
+                scrubberImageSize: 40,
+                scrubberType: "color",
+                bufferColor: "#ffffff",
+                enabled: progressBarEnabled ? progressBarEnabled.checked : true
+            };
+            chrome.storage.local.set({ progressBarColors: defaultColors });
+            if (progressColorInput) progressColorInput.value = defaultColors.progressColor;
+            if (scrubberColorInput) scrubberColorInput.value = defaultColors.scrubberColor;
+            if (bufferColorInput) bufferColorInput.value = defaultColors.bufferColor;
+            // Сброс типа точки воспроизведения
+            if (scrubberTypeColor) scrubberTypeColor.checked = true;
+            if (scrubberTypeImage) scrubberTypeImage.checked = false;
+            if (scrubberColorContainer) scrubberColorContainer.style.display = "block";
+            if (scrubberImageContainer) scrubberImageContainer.style.display = "none";
+            if (scrubberImagePreview) {
+                scrubberImagePreview.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.85rem;">Превью изображения</span>';
+            }
+            if (scrubberImageInput) scrubberImageInput.value = "";
+            if (removeScrubberImageBtn) removeScrubberImageBtn.style.display = "none";
+            // Сброс размера изображения
+            if (scrubberImageSizeInput) scrubberImageSizeInput.value = 40;
+            if (scrubberImageSizeValue) scrubberImageSizeValue.textContent = "40";
+        });
+    }
     // Listen for storage changes to update UI
     chrome.storage.onChanged.addListener((changes) => {
         if (changes["applicationIsOn"]?.newValue !== undefined && statusToggle) {
             statusToggle.checked = changes["applicationIsOn"].newValue;
+        }
+        if (changes["progressBarColors"]?.newValue !== undefined) {
+            const colors = changes["progressBarColors"].newValue;
+            if (progressBarEnabled) progressBarEnabled.checked = colors.enabled || false;
+            if (progressBarSettings) progressBarSettings.style.display = (colors.enabled || false) ? "block" : "none";
+            if (progressColorInput) progressColorInput.value = colors.progressColor || "#ff0000";
+            
+            // Обновление типа точки воспроизведения
+            const scrubberType = colors.scrubberType || "color";
+            if (scrubberTypeColor) scrubberTypeColor.checked = scrubberType === "color";
+            if (scrubberTypeImage) scrubberTypeImage.checked = scrubberType === "image";
+            
+            if (scrubberType === "color") {
+                if (scrubberColorContainer) scrubberColorContainer.style.display = "block";
+                if (scrubberImageContainer) scrubberImageContainer.style.display = "none";
+                if (scrubberColorInput) scrubberColorInput.value = colors.scrubberColor || "#ff0000";
+            } else {
+                if (scrubberColorContainer) scrubberColorContainer.style.display = "none";
+                if (scrubberImageContainer) scrubberImageContainer.style.display = "block";
+                if (colors.scrubberImage && scrubberImagePreview) {
+                    scrubberImagePreview.innerHTML = `<img src="${colors.scrubberImage}" style="max-width: 100%; max-height: 100px; border-radius: 4px;" />`;
+                    if (removeScrubberImageBtn) removeScrubberImageBtn.style.display = "block";
+                }
+                // Загружаем размер изображения
+                const imageSize = colors.scrubberImageSize || 40;
+                if (scrubberImageSizeInput) {
+                    scrubberImageSizeInput.value = imageSize;
+                }
+                if (scrubberImageSizeValue) {
+                    scrubberImageSizeValue.textContent = imageSize;
+                }
+            }
+            
+            if (bufferColorInput) {
+                let bufferColor = colors.bufferColor || "#ffffff";
+                // Конвертируем старый формат с альфа-каналом в обычный hex
+                if (bufferColor.length === 9 && bufferColor.includes('33')) {
+                    bufferColor = "#ffffff";
+                }
+                bufferColorInput.value = bufferColor;
+            }
         }
     });
 }
@@ -250,6 +597,8 @@ function getAllSettingsForPopup() {
         "scrollOnComments",
         "scrollOnNoTags",
         "additionalScrollDelay",
+        "shortsSelectedSpeed",
+        "progressBarColors",
     ];
     chrome.storage.local.get(keysToGet, (result) => {
         // Master Status Toggle
@@ -314,6 +663,45 @@ function getAllSettingsForPopup() {
         if (scrollOnNoTagsInput) {
             scrollOnNoTagsInput.checked = result.scrollOnNoTags ?? false;
         }
+        // Shorts Speed Select
+        if (shortsSpeedSelect) {
+            shortsSpeedSelect.value = (result.shortsSelectedSpeed ?? 2).toString();
+        }
+        // Progress Bar Settings
+        const progressBarColors = result.progressBarColors || {
+            progressColor: "#ff0000",
+            scrubberColor: "#ff0000",
+            bufferColor: "#ffffff",
+            enabled: false
+        };
+        console.log("[YT+] Loading progress bar settings:", progressBarColors);
+        if (progressBarEnabled) {
+            progressBarEnabled.checked = progressBarColors.enabled || false;
+            console.log("[YT+] Progress bar enabled checkbox set to:", progressBarEnabled.checked);
+        } else {
+            console.error("[YT+] progressBarEnabled element not found in getAllSettingsForPopup!");
+        }
+        if (progressBarSettings) {
+            const isEnabled = progressBarColors.enabled || false;
+            progressBarSettings.style.display = isEnabled ? "block" : "none";
+            console.log("[YT+] Progress bar settings panel visibility:", progressBarSettings.style.display);
+        } else {
+            console.error("[YT+] progressBarSettings element not found in getAllSettingsForPopup!");
+        }
+        if (progressColorInput) {
+            progressColorInput.value = progressBarColors.progressColor || "#ff0000";
+        }
+        if (scrubberColorInput) {
+            scrubberColorInput.value = progressBarColors.scrubberColor || "#ff0000";
+        }
+        if (bufferColorInput) {
+            // Конвертируем старый формат с альфа-каналом в обычный hex
+            let bufferColor = progressBarColors.bufferColor || "#ffffff";
+            if (bufferColor.length === 9 && bufferColor.includes('33')) {
+                bufferColor = "#ffffff";
+            }
+            bufferColorInput.value = bufferColor;
+        }
         // Initialize default values in storage if they were undefined
         const defaultsToSet = {};
         if (result.applicationIsOn === undefined) defaultsToSet.applicationIsOn = true;
@@ -335,6 +723,18 @@ function getAllSettingsForPopup() {
         if (result.scrollOnComments === undefined) defaultsToSet.scrollOnComments = false;
         if (result.scrollOnNoTags === undefined) defaultsToSet.scrollOnNoTags = false;
         if (result.additionalScrollDelay === undefined) defaultsToSet.additionalScrollDelay = 0;
+        if (result.shortsSelectedSpeed === undefined) defaultsToSet.shortsSelectedSpeed = 2;
+        if (result.progressBarColors === undefined) {
+            defaultsToSet.progressBarColors = {
+                progressColor: "#ff0000",
+                scrubberColor: "#ff0000",
+                scrubberImage: null,
+                scrubberImageSize: 40,
+                scrubberType: "color",
+                bufferColor: "#ffffff",
+                enabled: false
+            };
+        }
         if (Object.keys(defaultsToSet).length > 0) {
             chrome.storage.local.set(defaultsToSet);
         }

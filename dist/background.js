@@ -1,7 +1,8 @@
 const allStorageKeys = [
     "applicationIsOn",
     "scrollDirection",
-    "amountOfPlaysToSkip"
+    "amountOfPlaysToSkip",
+    "progressBarColors"
 ];
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -15,6 +16,19 @@ chrome.runtime.onInstalled.addListener(() => {
         }
         if (result.amountOfPlaysToSkip == undefined) {
             chrome.storage.local.set({ amountOfPlaysToSkip: 1 });
+        }
+        if (result.progressBarColors == undefined) {
+            chrome.storage.local.set({
+                progressBarColors: {
+                    progressColor: "#ff0000",
+                    scrubberColor: "#ff0000",
+                    scrubberImage: null,
+                    scrubberImageSize: 40,
+                    scrubberType: "color",
+                    bufferColor: "#ffffff",
+                    enabled: false
+                }
+            });
         }
     });
 });

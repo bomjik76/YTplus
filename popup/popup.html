@@ -28,10 +28,90 @@
       </div>
     </header>
     <div id="error-message"></div>
-    <div style="margin: 12px 0 0 0; padding: 8px 12px; background: #222; color: #fff; border-radius: 8px; font-size: 14px;">
-      <b>Ускорение Shorts:</b><br>
-      <span>Переключить скорость можно кнопкой или сочетанием клавиш <b>Shift+S</b> (англ) / <b>Shift+Ы</b> (рус).</span>
+    <div class="form-group" style="margin-top: 12px;">
+      <label for="shorts-speed-select">
+        <i class="fas fa-tachometer-alt"></i> Скорость воспроизведения Shorts
+      </label>
+      <select id="shorts-speed-select" style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); cursor: pointer;">
+        <option value="1.2">1.2x</option>
+        <option value="1.5">1.5x</option>
+        <option value="1.7">1.7x</option>
+        <option value="2" selected>2x</option>
+        <option value="2.5">2.5x</option>
+      </select>
+      <div class="description">Выберите скорость для ускорения Shorts. Переключить скорость можно кнопкой на экране или сочетанием клавиш <b>Shift+S</b> (англ) / <b>Shift+Ы</b> (рус).</div>
     </div>
+    
+    <div class="form-group" style="margin-top: 12px;">
+      <label for="progress-bar-enabled" style="cursor: pointer;">
+        <i class="fas fa-palette"></i> Кастомный прогресс-бар
+      </label>
+      <div class="toggle-switch-label" style="margin-top: 8px;">
+        <span class="toggle-switch-text">Включить</span>
+        <label class="status-toggle-label" for="progress-bar-enabled" style="cursor: pointer;">
+          <div class="toggle-switch">
+            <input type="checkbox" id="progress-bar-enabled" />
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group" id="progress-bar-settings" style="display: none;">
+      <label for="progress-color">
+        <i class="fas fa-paint-brush"></i> Цвет прогресс-бара
+      </label>
+      <input type="color" id="progress-color" value="#ff0000" style="width: 100%; height: 40px; cursor: pointer; border-radius: 8px;" />
+      <div class="description">Цвет заполненной части прогресс-бара</div>
+      
+      <label style="margin-top: 12px; display: block;">
+        <i class="fas fa-circle"></i> Точка воспроизведения
+      </label>
+      <div style="display: flex; gap: 8px; margin-top: 4px;">
+        <label style="flex: 1; cursor: pointer; padding: 8px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: 8px; text-align: center; font-size: 0.85rem;">
+          <input type="radio" name="scrubber-type" value="color" id="scrubber-type-color" checked style="margin-right: 4px;" />
+          Цвет
+        </label>
+        <label style="flex: 1; cursor: pointer; padding: 8px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: 8px; text-align: center; font-size: 0.85rem;">
+          <input type="radio" name="scrubber-type" value="image" id="scrubber-type-image" style="margin-right: 4px;" />
+          Изображение
+        </label>
+      </div>
+      
+      <div id="scrubber-color-container" style="margin-top: 8px;">
+        <input type="color" id="scrubber-color" value="#ff0000" style="width: 100%; height: 40px; cursor: pointer; border-radius: 8px;" />
+        <div class="description">Цвет ползунка (точки) на прогресс-баре</div>
+      </div>
+      
+      <div id="scrubber-image-container" style="margin-top: 8px; display: none;">
+        <input type="file" id="scrubber-image" accept="image/*" style="width: 100%; padding: 8px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: 8px; color: var(--text-primary); cursor: pointer; margin-bottom: 8px;" />
+        <div id="scrubber-image-preview" style="width: 100%; min-height: 60px; background: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 8px; margin-bottom: 8px;">
+          <span style="color: var(--text-secondary); font-size: 0.85rem;">Превью изображения</span>
+        </div>
+        
+        <label for="scrubber-image-size" style="display: block; margin-top: 8px; margin-bottom: 4px;">
+          <i class="fas fa-expand-arrows-alt"></i> Размер изображения: <span id="scrubber-image-size-value">40</span>px
+        </label>
+        <input type="range" id="scrubber-image-size" min="20" max="150" value="40" step="5" style="width: 100%; height: 6px; background: var(--input-bg); border-radius: 3px; outline: none; cursor: pointer; margin-bottom: 8px;" />
+        <div class="description" style="margin-top: -4px;">Размер изображения в пикселях (20px - 150px). Изображение накладывается независимо от размера точки</div>
+        
+        <button type="button" id="remove-scrubber-image" style="width: 100%; padding: 6px; background: rgba(255, 45, 45, 0.2); color: var(--primary-accent); border: 1.5px solid var(--primary-accent); border-radius: 8px; cursor: pointer; font-size: 0.85rem; display: none; margin-top: 8px;">
+          <i class="fas fa-times"></i> Удалить изображение
+        </button>
+        <div class="description" style="margin-top: 4px;">Изображение для точки воспроизведения (рекомендуется квадратное, до 100x100px)</div>
+      </div>
+      
+      <label for="buffer-color" style="margin-top: 12px;">
+        <i class="fas fa-layer-group"></i> Цвет буфера (опционально)
+      </label>
+      <input type="color" id="buffer-color" value="#ffffff" style="width: 100%; height: 40px; cursor: pointer; border-radius: 8px; margin-top: 4px;" />
+      <div class="description">Цвет загруженной части видео (применяется с прозрачностью 20%)</div>
+      
+      <button id="reset-progress-colors" style="width: 100%; margin-top: 12px; padding: 8px; background: var(--primary-accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+        <i class="fas fa-undo"></i> Сбросить к стандартным цветам
+      </button>
+    </div>
+    
     <script src="../dist/script.js"></script>
   </body>
 </html>

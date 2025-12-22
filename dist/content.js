@@ -28,7 +28,6 @@ let shortsSpeedState = 1; // 1x или выбранная скорость
 let selectedSpeed = 2; // скорость для ускорения по умолчанию
 let speedOverlay = null;
 let speedToggleButton = null;
-let speedSelect = null;
 const SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
 const SPEED_TOGGLE_SHORTCUT = ['shift', 's']; // Hardcoded for now
 let pressedKeys = [];
@@ -60,9 +59,18 @@ function stopAutoScrolling() {
         currentVideoElement.removeEventListener("ended", shortEnded);
         currentVideoElement._hasEndEvent = false;
     }
+    // Удаляем UI скорости при остановке
+    if (!isShortsPage()) {
+        removeSpeedUI();
+    }
 }
 async function checkForNewShort() {
-    if (!applicationIsOn || !isShortsPage())
+    // Удаляем кнопку, если не на странице Shorts
+    if (!isShortsPage()) {
+        removeSpeedUI();
+        return;
+    }
+    if (!applicationIsOn)
         return;
     const currentShort = findShortContainer();
     if (!currentShort)
@@ -103,6 +111,7 @@ async function checkForNewShort() {
         setShortsPlaybackSpeed(shortsSpeedState);
         injectSpeedToggleButton();
     } else {
+        // Удаляем кнопку, если не на странице Shorts или нет видео элемента
         removeSpeedUI();
     }
 }
@@ -186,6 +195,12 @@ async function waitForNextShort(retries = 5, delay = 500) {
     return null;
 }
 function isShortsPage() {
+    // Проверяем URL - страница Shorts должна содержать /shorts/
+    const url = window.location.href;
+    if (!url.includes('/shorts/')) {
+        return false;
+    }
+    // Дополнительная проверка наличия элементов Shorts на странице
     let containsShortElements = false;
     for (let i = 0; i < VIDEOS_LIST_SELECTORS.length; i++) {
         const doesPageHaveAShort = document.querySelector(VIDEOS_LIST_SELECTORS[i]);
@@ -209,6 +224,34 @@ function isShortsPage() {
     checkForNewShort();
     checkApplicationState();
     setInterval(checkForNewShort, RETRY_DELAY_MS);
+    // Проверка при загрузке страницы - удаляем кнопку, если не на странице Shorts
+    if (!isShortsPage()) {
+        removeSpeedUI();
+    }
+    // Отслеживание изменений URL для удаления кнопки при переходе на другую страницу
+    let lastUrl = location.href;
+    const urlObserver = new MutationObserver(() => {
+        const url = location.href;
+        if (url !== lastUrl) {
+            lastUrl = url;
+            // Небольшая задержка для проверки после изменения URL
+            setTimeout(() => {
+                if (!isShortsPage()) {
+                    removeSpeedUI();
+                }
+            }, 100);
+        }
+    });
+    urlObserver.observe(document, { subtree: true, childList: true });
+    
+    // Также отслеживаем события popstate (навигация браузера)
+    window.addEventListener('popstate', () => {
+        setTimeout(() => {
+            if (!isShortsPage()) {
+                removeSpeedUI();
+            }
+        }, 100);
+    });
     function checkApplicationState() {
         chrome.storage.local.get(["applicationIsOn"], (result) => {
             if (applicationIsOn && result["applicationIsOn"] === false) {
@@ -233,7 +276,8 @@ function isShortsPage() {
         chrome.storage.local.get([
             "shortCutKeys",
             "scrollDirection",
-            "amountOfPlaysToSkip"
+            "amountOfPlaysToSkip",
+            "shortsSelectedSpeed"
         ], (result) => {
             console.log("[YT+]", {
                 AutoYTScrollerSettings: result,
@@ -248,6 +292,8 @@ function isShortsPage() {
             }
             if (result["amountOfPlaysToSkip"])
                 amountOfPlaysToSkip = result["amountOfPlaysToSkip"];
+            if (result["shortsSelectedSpeed"])
+                selectedSpeed = result["shortsSelectedSpeed"];
             shortCutListener();
         });
         chrome.storage.onChanged.addListener((result) => {
@@ -265,6 +311,18 @@ function isShortsPage() {
             let newAmountOfPlaysToSkip = result["amountOfPlaysToSkip"]?.newValue;
             if (newAmountOfPlaysToSkip) {
                 amountOfPlaysToSkip = newAmountOfPlaysToSkip;
+            }
+            let newShortsSelectedSpeed = result["shortsSelectedSpeed"]?.newValue;
+            if (newShortsSelectedSpeed != undefined) {
+                selectedSpeed = newShortsSelectedSpeed;
+                // Если ускорение активно, сразу применить новую скорость
+                if (shortsSpeedState !== 1 && currentVideoElement) {
+                    setShortsPlaybackSpeed(selectedSpeed);
+                }
+                // Обновить текст кнопки
+                if (speedToggleButton) {
+                    speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
+                }
             }
         });
     })();
@@ -357,9 +415,9 @@ function createSpeedToggleButton() {
     speedToggleButton = document.createElement('button');
     speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
     speedToggleButton.title = 'Toggle Shorts Speed (1x/выбранная)';
-    speedToggleButton.style.position = 'absolute';
-    speedToggleButton.style.top = '16px';
-    speedToggleButton.style.right = '70px';
+    speedToggleButton.style.position = 'fixed';
+    speedToggleButton.style.top = '150px';
+    speedToggleButton.style.right = '40px';
     speedToggleButton.style.zIndex = '9999';
     speedToggleButton.style.background = 'rgba(0,0,0,0.7)';
     speedToggleButton.style.color = '#fff';
@@ -377,55 +435,19 @@ function createSpeedToggleButton() {
         e.stopPropagation();
         toggleShortsPlaybackSpeed();
     });
-    // Создаём select для выбора скорости
-    speedSelect = document.createElement('select');
-    speedSelect.style.position = 'absolute';
-    speedSelect.style.top = '16px';
-    speedSelect.style.right = '16px';
-    speedSelect.style.zIndex = '9999';
-    speedSelect.style.background = 'rgba(0,0,0,0.7)';
-    speedSelect.style.color = '#fff';
-    speedSelect.style.border = 'none';
-    speedSelect.style.borderRadius = '8px';
-    speedSelect.style.width = '50px';
-    speedSelect.style.height = '32px';
-    speedSelect.style.fontSize = '15px';
-    speedSelect.style.marginLeft = '8px';
-    speedSelect.style.cursor = 'pointer';
-    SPEED_OPTIONS.forEach(val => {
-        let opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val + 'x';
-        speedSelect.appendChild(opt);
-    });
-    speedSelect.value = selectedSpeed;
-    speedSelect.addEventListener('change', (e) => {
-        selectedSpeed = parseFloat(e.target.value);
-        speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
-        // Если ускорение активно, сразу применить новую скорость
-        if (shortsSpeedState !== 1) {
-            setShortsPlaybackSpeed(selectedSpeed);
-        }
-    });
 }
 function updateSpeedToggleButton(speed) {
     if (!speedToggleButton) return;
     speedToggleButton.style.background = 'rgba(0,0,0,0.7)';
     speedToggleButton.title = `Текущая: ${speed}x. Клик — переключить.`;
     speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
-    if (speedSelect) speedSelect.value = selectedSpeed;
 }
 function injectSpeedToggleButton() {
     if (!currentVideoElement) return;
     createSpeedToggleButton();
-    // Shorts container
-    const shortsContainer = currentVideoElement.closest('.reel-video-in-sequence, .reel-video-in-sequence-new');
-    if (shortsContainer && !shortsContainer.contains(speedToggleButton)) {
-        shortsContainer.appendChild(speedToggleButton);
-        shortsContainer.appendChild(speedSelect);
-    } else {
-        if (!document.body.contains(speedToggleButton)) document.body.appendChild(speedToggleButton);
-        if (!document.body.contains(speedSelect)) document.body.appendChild(speedSelect);
+    // Всегда добавляем кнопку в body, чтобы она была зафиксирована на экране
+    if (!document.body.contains(speedToggleButton)) {
+        document.body.appendChild(speedToggleButton);
     }
     updateSpeedToggleButton(shortsSpeedState);
 }
@@ -434,8 +456,6 @@ function removeSpeedUI() {
     speedOverlay = null;
     if (speedToggleButton && speedToggleButton.parentNode) speedToggleButton.parentNode.removeChild(speedToggleButton);
     speedToggleButton = null;
-    if (speedSelect && speedSelect.parentNode) speedSelect.parentNode.removeChild(speedSelect);
-    speedSelect = null;
 }
 // Listen for Shift+S
 (function shortsSpeedShortcutListener() {
@@ -542,4 +562,160 @@ function showNormalSpeedOverlay(speed) {
             }
         }
     });
+})();
+
+// ------------------------------
+// PROGRESS BAR CUSTOMIZATION FEATURE
+// ------------------------------
+let progressBarStyle = null;
+let progressBarColors = {
+    progressColor: '#ff0000',      // Цвет заполненной части прогресс-бара
+    scrubberColor: '#ff0000',      // Цвет точки воспроизведения
+    scrubberImage: null,           // Изображение для точки воспроизведения (base64)
+    scrubberImageSize: 40,         // Размер изображения в пикселях (20-150)
+    scrubberType: 'color',         // Тип точки воспроизведения: 'color' или 'image'
+    bufferColor: '#ffffff',        // Цвет буфера (с прозрачностью в CSS)
+    enabled: true
+};
+
+// Функция для создания и применения стилей прогресс-бара
+function applyProgressBarStyles() {
+    // Удаляем старые стили, если они есть
+    if (progressBarStyle && progressBarStyle.parentNode) {
+        progressBarStyle.parentNode.removeChild(progressBarStyle);
+    }
+
+    if (!progressBarColors.enabled) {
+        return;
+    }
+
+    // Создаем новый элемент style
+    progressBarStyle = document.createElement('style');
+    progressBarStyle.id = 'ytplus-progress-bar-styles';
+    
+    const css = `
+        /* Стилизация прогресс-бара YouTube */
+        .ytp-progress-bar-container,
+        .ytp-progress-bar {
+            background: transparent !important;
+        }
+        
+        /* Заполненная часть прогресс-бара (прогресс воспроизведения) */
+        .ytp-play-progress,
+        .ytp-play-progress.ytp-swatch-background-color {
+            background: ${progressBarColors.progressColor} !important;
+            background-color: ${progressBarColors.progressColor} !important;
+        }
+        
+        /* Точка воспроизведения (ползунок) */
+        .ytp-scrubber-button,
+        .ytp-scrubber-button.ytp-swatch-background-color {
+            ${getScrubberStyles()}
+        }
+        
+        /* Внутренний круг точки воспроизведения */
+        .ytp-scrubber-button::before {
+            ${progressBarColors.scrubberType === 'image' && progressBarColors.scrubberImage
+                ? 'background: transparent !important;'
+                : `background: ${progressBarColors.scrubberColor} !important;`}
+        }
+        
+        /* Буфер (загруженная часть) */
+        .ytp-load-progress,
+        .ytp-load-progress div {
+            background: ${hexToRgba(progressBarColors.bufferColor, 0.2)} !important;
+        }
+        
+        /* Для Shorts */
+        .reel-player-overlay .ytp-progress-bar-container .ytp-play-progress,
+        .reel-player-overlay .ytp-progress-bar-container .ytp-scrubber-button {
+            background: ${progressBarColors.progressColor} !important;
+            background-color: ${progressBarColors.progressColor} !important;
+        }
+        
+        .reel-player-overlay .ytp-scrubber-button {
+            ${getScrubberStyles()}
+        }
+    `;
+    
+    progressBarStyle.textContent = css;
+    document.head.appendChild(progressBarStyle);
+}
+
+// Функция для конвертации hex в rgba
+function hexToRgba(hex, alpha = 1) {
+    // Удаляем # если есть
+    hex = hex.replace('#', '');
+    
+    // Поддержка короткого формата (#fff -> #ffffff)
+    if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Функция для получения стилей точки воспроизведения
+function getScrubberStyles() {
+    if (progressBarColors.scrubberType === 'image' && progressBarColors.scrubberImage) {
+        const imageSize = progressBarColors.scrubberImageSize || 40;
+        return `background-image: url("${progressBarColors.scrubberImage}") !important;
+                background-size: ${imageSize}px ${imageSize}px !important;
+                background-repeat: no-repeat !important;
+                background-position: center !important;
+                background-color: transparent !important;
+                border: none !important;
+                width: ${imageSize}px !important;
+                height: ${imageSize}px !important;
+                min-width: ${imageSize}px !important;
+                min-height: ${imageSize}px !important;
+                box-sizing: content-box !important;`;
+    } else {
+        return `background: ${progressBarColors.scrubberColor} !important;
+                background-color: ${progressBarColors.scrubberColor} !important;
+                border-color: ${progressBarColors.scrubberColor} !important;`;
+    }
+}
+
+// Функция для обновления цветов прогресс-бара
+function updateProgressBarColors(colors) {
+    progressBarColors = { ...progressBarColors, ...colors };
+    applyProgressBarStyles();
+}
+
+// Инициализация стилей прогресс-бара
+(function initProgressBarStyles() {
+    // Загружаем настройки из storage
+    chrome.storage.local.get(['progressBarColors'], (result) => {
+        if (result.progressBarColors) {
+            progressBarColors = { ...progressBarColors, ...result.progressBarColors };
+        }
+        applyProgressBarStyles();
+    });
+
+    // Слушаем изменения настроек
+    chrome.storage.onChanged.addListener((changes) => {
+        if (changes.progressBarColors) {
+            progressBarColors = { ...progressBarColors, ...changes.progressBarColors.newValue };
+            applyProgressBarStyles();
+        }
+    });
+
+    // Применяем стили при загрузке страницы и при изменении DOM (для динамического контента YouTube)
+    const observer = new MutationObserver(() => {
+        if (progressBarColors.enabled && (!progressBarStyle || !document.head.contains(progressBarStyle))) {
+            applyProgressBarStyles();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // Применяем стили сразу
+    applyProgressBarStyles();
 })();
