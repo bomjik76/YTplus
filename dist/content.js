@@ -28,6 +28,7 @@ let shortsSpeedState = 1; // 1x или выбранная скорость
 let selectedSpeed = 2; // скорость для ускорения по умолчанию
 let speedOverlay = null;
 let speedToggleButton = null;
+let speedToggleButtonContainer = null;
 const SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
 const SPEED_TOGGLE_SHORTCUT = ['shift', 's']; // Hardcoded for now
 let pressedKeys = [];
@@ -224,6 +225,34 @@ function isShortsPage() {
     checkForNewShort();
     checkApplicationState();
     setInterval(checkForNewShort, RETRY_DELAY_MS);
+    
+    // Используем MutationObserver для отслеживания новых Shorts (как в оригинальном расширении)
+    const observer = new MutationObserver((mutationsList) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // It's an element
+                        if (node.matches && node.matches('ytd-reel-video-renderer')) {
+                            // Небольшая задержка для гарантии, что DOM готов
+                            setTimeout(() => injectSpeedToggleButton(), 100);
+                        }
+                        if (node.querySelectorAll) {
+                            node.querySelectorAll('ytd-reel-video-renderer').forEach(() => {
+                                setTimeout(() => injectSpeedToggleButton(), 100);
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Пробуем добавить кнопку к уже существующим Shorts
+    document.querySelectorAll('ytd-reel-video-renderer').forEach(() => {
+        setTimeout(() => injectSpeedToggleButton(), 100);
+    });
     // Проверка при загрузке страницы - удаляем кнопку, если не на странице Shorts
     if (!isShortsPage()) {
         removeSpeedUI();
@@ -320,8 +349,11 @@ function isShortsPage() {
                     setShortsPlaybackSpeed(selectedSpeed);
                 }
                 // Обновить текст кнопки
-                if (speedToggleButton) {
-                    speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
+                if (speedToggleButtonContainer) {
+                    const speedText = speedToggleButtonContainer.querySelector('#ytplus-speed-text');
+                    if (speedText) {
+                        speedText.textContent = `${selectedSpeed}x`;
+                    }
                 }
             }
         });
@@ -373,37 +405,73 @@ function toggleShortsPlaybackSpeed() {
     setShortsPlaybackSpeed(newSpeed);
 }
 function showSpeedOverlay(speed) {
+    // Находим контейнер действий для размещения overlay
+    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
+    if (!activeShort) return;
+    
+    const actionsContainer = activeShort.querySelector('ytd-reel-player-overlay-renderer #actions');
+    if (!actionsContainer) return;
+    
     if (!speedOverlay) {
+        // Создаём контейнер для overlay (как у кнопок YouTube)
         speedOverlay = document.createElement('div');
-        speedOverlay.style.position = 'fixed';
-        speedOverlay.style.top = '80px';
-        speedOverlay.style.right = '40px';
-        speedOverlay.style.zIndex = '9999';
-        speedOverlay.style.color = '#fff';
-        speedOverlay.style.fontWeight = 'bold';
-        speedOverlay.style.fontSize = '18px';
-        speedOverlay.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-        speedOverlay.style.transition = 'opacity 0.3s';
-        speedOverlay.style.pointerEvents = 'none';
-        speedOverlay.style.display = 'flex';
-        speedOverlay.style.alignItems = 'center';
-        speedOverlay.style.justifyContent = 'center';
-        document.body.appendChild(speedOverlay);
+        speedOverlay.className = 'ytplus-speed-overlay';
+        speedOverlay.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0;';
+        
+        // Создаём кнопку-индикатор в стиле YouTube
+        const overlayButton = document.createElement('button');
+        overlayButton.className = 'yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-button';
+        overlayButton.style.cssText = 'width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;';
+        overlayButton.id = 'ytplus-speed-overlay-button';
+        
+        // Создаём текст внутри кнопки
+        const overlayText = document.createElement('div');
+        overlayText.className = 'yt-spec-button-shape-next__icon';
+        overlayText.style.cssText = 'width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500;';
+        overlayText.id = 'ytplus-speed-overlay-text';
+        
+        overlayButton.appendChild(overlayText);
+        speedOverlay.appendChild(overlayButton);
+        
+        // Добавляем overlay в контейнер действий, если его там ещё нет
+        if (!actionsContainer.contains(speedOverlay)) {
+            // Вставляем перед кнопкой скорости, если она есть
+            const speedButton = actionsContainer.querySelector('.ytplus-speed-button');
+            if (speedButton) {
+                actionsContainer.insertBefore(speedOverlay, speedButton);
+            } else {
+                // Если кнопки нет, вставляем в начало
+                actionsContainer.prepend(speedOverlay);
+            }
+        }
     }
-    speedOverlay.textContent = speed + 'x';
+    
+    const overlayText = speedOverlay.querySelector('#ytplus-speed-overlay-text');
+    const overlayButton = speedOverlay.querySelector('#ytplus-speed-overlay-button');
+    
+    if (overlayText) {
+        overlayText.textContent = speed + 'x';
+    }
+    
+    // Обновляем стиль в зависимости от состояния
     if (speed !== 1) {
-        speedOverlay.style.background = 'rgb(255, 0, 51)';
-        speedOverlay.style.borderRadius = '50%';
-        speedOverlay.style.width = '48px';
-        speedOverlay.style.height = '48px';
-        speedOverlay.style.padding = '0';
+        // Активное состояние - подсвечиваем
+        if (overlayText) {
+            overlayText.style.color = '#3ea6ff';
+        }
+        if (overlayButton) {
+            overlayButton.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+        }
     } else {
-        speedOverlay.style.background = 'rgba(0,0,0,0.7)';
-        speedOverlay.style.borderRadius = '20px';
-        speedOverlay.style.width = 'auto';
-        speedOverlay.style.height = 'auto';
-        speedOverlay.style.padding = '6px 14px';
+        // Неактивное состояние - стандартный цвет
+        if (overlayText) {
+            overlayText.style.color = '';
+        }
+        if (overlayButton) {
+            overlayButton.style.backgroundColor = '';
+        }
     }
+    
     speedOverlay.style.opacity = '1';
     clearTimeout(speedOverlay._hideTimeout);
     speedOverlay._hideTimeout = setTimeout(() => {
@@ -411,50 +479,108 @@ function showSpeedOverlay(speed) {
     }, 1200);
 }
 function createSpeedToggleButton() {
-    if (speedToggleButton) return;
+    if (speedToggleButtonContainer) return;
+    
+    // Создаём контейнер для кнопки (как у других кнопок взаимодействия YouTube)
+    speedToggleButtonContainer = document.createElement('div');
+    speedToggleButtonContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 4px;';
+    
+    // Создаём саму кнопку в стиле YouTube
     speedToggleButton = document.createElement('button');
-    speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
+    speedToggleButton.className = 'yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-button';
     speedToggleButton.title = 'Toggle Shorts Speed (1x/выбранная)';
-    speedToggleButton.style.position = 'fixed';
-    speedToggleButton.style.top = '150px';
-    speedToggleButton.style.right = '40px';
-    speedToggleButton.style.zIndex = '9999';
-    speedToggleButton.style.background = 'rgba(0,0,0,0.7)';
-    speedToggleButton.style.color = '#fff';
-    speedToggleButton.style.border = 'none';
-    speedToggleButton.style.borderRadius = '50%';
-    speedToggleButton.style.width = '60px';
-    speedToggleButton.style.height = '40px';
-    speedToggleButton.style.fontSize = '16px';
-    speedToggleButton.style.cursor = 'pointer';
-    speedToggleButton.style.display = 'flex';
-    speedToggleButton.style.alignItems = 'center';
-    speedToggleButton.style.justifyContent = 'center';
-    speedToggleButton.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    speedToggleButton.style.cssText = 'width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;';
+    
+    // Создаём иконку внутри кнопки (как у других кнопок YouTube)
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'yt-spec-button-shape-next__icon';
+    iconDiv.style.cssText = 'width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;';
+    iconDiv.textContent = '⏩';
+    iconDiv.style.fontSize = '20px';
+    
+    speedToggleButton.appendChild(iconDiv);
+    
     speedToggleButton.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleShortsPlaybackSpeed();
     });
+    
+    // Создаём текст под кнопкой (как у других кнопок YouTube)
+    const speedText = document.createElement('span');
+    speedText.id = 'ytplus-speed-text';
+    speedText.className = 'yt-core-attributed-string yt-core-attributed-string--white-space-no-wrap yt-core-attributed-string--text-alignment-center';
+    speedText.textContent = `${selectedSpeed}x`;
+    speedText.style.cssText = 'color: rgba(255, 255, 255, 0.9); font-size: 12px; font-weight: 400; line-height: 1.2; text-align: center; margin-top: 4px;';
+    
+    // Добавляем кнопку и текст в контейнер
+    speedToggleButtonContainer.appendChild(speedToggleButton);
+    speedToggleButtonContainer.appendChild(speedText);
 }
 function updateSpeedToggleButton(speed) {
-    if (!speedToggleButton) return;
-    speedToggleButton.style.background = 'rgba(0,0,0,0.7)';
+    if (!speedToggleButton || !speedToggleButtonContainer) return;
     speedToggleButton.title = `Текущая: ${speed}x. Клик — переключить.`;
-    speedToggleButton.textContent = `⏩ ${selectedSpeed}x`;
+    const speedText = speedToggleButtonContainer.querySelector('#ytplus-speed-text');
+    if (speedText) {
+        speedText.textContent = `${selectedSpeed}x`;
+    }
+    // Обновляем стиль кнопки в зависимости от состояния (как у активных кнопок YouTube)
+    const iconDiv = speedToggleButton.querySelector('.yt-spec-button-shape-next__icon');
+    if (speed !== 1) {
+        // Активное состояние - подсвечиваем иконку
+        if (iconDiv) {
+            iconDiv.style.color = '#3ea6ff';
+        }
+        speedToggleButton.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+    } else {
+        // Неактивное состояние - стандартный цвет
+        if (iconDiv) {
+            iconDiv.style.color = '';
+        }
+        speedToggleButton.style.backgroundColor = '';
+    }
 }
 function injectSpeedToggleButton() {
     if (!currentVideoElement) return;
-    createSpeedToggleButton();
-    // Всегда добавляем кнопку в body, чтобы она была зафиксирована на экране
-    if (!document.body.contains(speedToggleButton)) {
-        document.body.appendChild(speedToggleButton);
+    
+    // Находим активный Short (как в оригинальном расширении)
+    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
+    if (!activeShort) {
+        // Если активный не найден, пробуем найти любой Short
+        const anyShort = document.querySelector('ytd-reel-video-renderer');
+        if (!anyShort) return;
+        addButtonToPlayer(anyShort);
+        return;
     }
+    
+    addButtonToPlayer(activeShort);
+}
+
+function addButtonToPlayer(rendererNode) {
+    // Ищем контейнер #actions внутри ytd-reel-player-overlay-renderer (как в оригинальном расширении)
+    const actionsContainer = rendererNode.querySelector('ytd-reel-player-overlay-renderer #actions');
+    
+    // Если контейнер не найден или кнопка уже добавлена, выходим
+    if (!actionsContainer || rendererNode.querySelector('.ytplus-speed-button')) {
+        return;
+    }
+    
+    createSpeedToggleButton();
+    
+    // Добавляем класс для идентификации
+    speedToggleButtonContainer.classList.add('ytplus-speed-button');
+    
+    // Вставляем кнопку в начало контейнера (сверху) используя prepend (как в оригинале)
+    actionsContainer.prepend(speedToggleButtonContainer);
+    
     updateSpeedToggleButton(shortsSpeedState);
 }
 function removeSpeedUI() {
     if (speedOverlay && speedOverlay.parentNode) speedOverlay.parentNode.removeChild(speedOverlay);
     speedOverlay = null;
-    if (speedToggleButton && speedToggleButton.parentNode) speedToggleButton.parentNode.removeChild(speedToggleButton);
+    if (speedToggleButtonContainer && speedToggleButtonContainer.parentNode) {
+        speedToggleButtonContainer.parentNode.removeChild(speedToggleButtonContainer);
+    }
+    speedToggleButtonContainer = null;
     speedToggleButton = null;
 }
 // Listen for Shift+S
