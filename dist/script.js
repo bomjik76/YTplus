@@ -19,7 +19,14 @@ const amountOfPlaysInput = document.querySelector("#amountOfPlaysInput");
 const scrollOnCommentsInput = document.querySelector("#scrollOnCommentsInput");
 const scrollOnNoTagsInput = document.querySelector("#scrollOnNoTagsInput");
 const additionalScrollDelayInput = document.querySelector("#additionalScrollDelayInput");
+const shortsSpeedEnabled = document.querySelector("#shorts-speed-enabled");
 const shortsSpeedSelect = document.querySelector("#shorts-speed-select");
+const shortsSpeedShortcut = document.querySelector("#shorts-speed-shortcut");
+const shortsScrollEnabled = document.querySelector("#shorts-scroll-enabled");
+const shortsScrollDownShortcut = document.querySelector("#shorts-scroll-down-shortcut");
+const shortsScrollUpShortcut = document.querySelector("#shorts-scroll-up-shortcut");
+const normalVideoSpeedEnabled = document.querySelector("#normal-video-speed-enabled");
+const normalVideoSpeedShortcut = document.querySelector("#normal-video-speed-shortcut");
 // Progress Bar Elements
 const progressBarEnabled = document.querySelector("#progress-bar-enabled");
 const progressBarSettings = document.querySelector("#progress-bar-settings");
@@ -36,6 +43,8 @@ const scrubberImagePreview = document.querySelector("#scrubber-image-preview");
 const removeScrubberImageBtn = document.querySelector("#remove-scrubber-image");
 const scrubberImageSizeInput = document.querySelector("#scrubber-image-size");
 const scrubberImageSizeValue = document.querySelector("#scrubber-image-size-value");
+const hideControlsEnabled = document.querySelector("#hide-controls-enabled");
+const hideControlsShortcut = document.querySelector("#hide-controls-shortcut");
 // Navigation Elements
 const navItems = document.querySelectorAll(".nav-item");
 const contentPanels = document.querySelectorAll(".content-panel");
@@ -175,12 +184,272 @@ function setupEventListeners() {
     if (scrollOnNoTagsInput) {
         scrollOnNoTagsInput.addEventListener("change", handleCheckboxChange("scrollOnNoTags"));
     }
+    // Shorts Speed Enabled Toggle
+    if (shortsSpeedEnabled) {
+        shortsSpeedEnabled.addEventListener("change", (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ shortsSpeedEnabled: enabled });
+        });
+    }
     // Shorts Speed Select
     if (shortsSpeedSelect) {
         shortsSpeedSelect.addEventListener("change", (e) => {
             const speed = parseFloat(e.target.value);
             chrome.storage.local.set({ shortsSelectedSpeed: speed });
         });
+    }
+    // Shorts Speed Shortcut - запись комбинации клавиш
+    if (shortsSpeedShortcut) {
+        let isRecording = false;
+        
+        // При фокусе на поле начинаем запись
+        shortsSpeedShortcut.addEventListener("focus", function(e) {
+            isRecording = true;
+            shortsSpeedShortcut.value = "";
+            shortsSpeedShortcut.placeholder = "Нажмите комбинацию клавиш...";
+        });
+        
+        // При потере фокуса прекращаем запись
+        shortsSpeedShortcut.addEventListener("blur", function() {
+            isRecording = false;
+        });
+        
+        // Записываем комбинацию клавиш
+        shortsSpeedShortcut.addEventListener("keydown", function(e) {
+            if (!isRecording) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Игнорируем клавиши, которые используются для навигации
+            if (e.key === 'Tab') {
+                return; // Разрешаем Tab для выхода из поля
+            }
+            
+            // Собираем комбинацию клавиш
+            const keys = [];
+            if (e.ctrlKey) keys.push('ctrl');
+            if (e.shiftKey) keys.push('shift');
+            if (e.altKey) keys.push('alt');
+            if (e.metaKey) keys.push('meta');
+            
+            // Добавляем основную клавишу (если это не модификатор)
+            const key = e.key.toLowerCase();
+            if (key && !['control', 'shift', 'alt', 'meta', 'capslock', 'tab'].includes(key)) {
+                keys.push(key);
+                
+                // Минимум должна быть одна клавиша
+                if (keys.length > 0) {
+                    // Форматируем и отображаем комбинацию
+                    const keysStr = keys.join('+');
+                    shortsSpeedShortcut.value = keysStr;
+                    
+                    // Сохраняем в storage
+                    chrome.storage.local.set({ shortsSpeedShortcut: keys });
+                    
+                    // Убираем фокус после записи
+                    setTimeout(() => {
+                        shortsSpeedShortcut.blur();
+                    }, 100);
+                }
+            }
+        });
+        
+        // Предотвращаем обычный ввод текста
+        shortsSpeedShortcut.addEventListener("keypress", function(e) {
+            if (isRecording) {
+                e.preventDefault();
+            }
+        });
+        
+        // Предотвращаем ввод текста через paste
+        shortsSpeedShortcut.addEventListener("paste", function(e) {
+            e.preventDefault();
+        });
+        
+        // Обработчик для случая, если пользователь все же введет текст вручную (резервный)
+        shortsSpeedShortcut.addEventListener("change", handleShortcutInputChange(shortsSpeedShortcut, "shortsSpeedShortcut", "shift+s"));
+    }
+    // Shorts Scroll Down Shortcut - запись комбинации клавиш
+    if (shortsScrollDownShortcut) {
+        let isRecording = false;
+        
+        shortsScrollDownShortcut.addEventListener("focus", function(e) {
+            isRecording = true;
+            shortsScrollDownShortcut.value = "";
+            shortsScrollDownShortcut.placeholder = "Нажмите комбинацию клавиш...";
+        });
+        
+        shortsScrollDownShortcut.addEventListener("blur", function() {
+            isRecording = false;
+        });
+        
+        shortsScrollDownShortcut.addEventListener("keydown", function(e) {
+            if (!isRecording) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (e.key === 'Tab') {
+                return;
+            }
+            
+            const keys = [];
+            if (e.ctrlKey) keys.push('ctrl');
+            if (e.shiftKey) keys.push('shift');
+            if (e.altKey) keys.push('alt');
+            if (e.metaKey) keys.push('meta');
+            
+            const key = e.key.toLowerCase();
+            if (key && !['control', 'shift', 'alt', 'meta', 'capslock', 'tab'].includes(key)) {
+                keys.push(key);
+                
+                if (keys.length > 0) {
+                    const keysStr = keys.join('+');
+                    shortsScrollDownShortcut.value = keysStr;
+                    chrome.storage.local.set({ shortsScrollDownShortcut: keys });
+                    
+                    setTimeout(() => {
+                        shortsScrollDownShortcut.blur();
+                    }, 100);
+                }
+            }
+        });
+        
+        shortsScrollDownShortcut.addEventListener("keypress", function(e) {
+            if (isRecording) {
+                e.preventDefault();
+            }
+        });
+        
+        shortsScrollDownShortcut.addEventListener("paste", function(e) {
+            e.preventDefault();
+        });
+        
+        shortsScrollDownShortcut.addEventListener("change", handleShortcutInputChange(shortsScrollDownShortcut, "shortsScrollDownShortcut", "d"));
+    }
+    // Shorts Scroll Up Shortcut - запись комбинации клавиш
+    if (shortsScrollUpShortcut) {
+        let isRecording = false;
+        
+        shortsScrollUpShortcut.addEventListener("focus", function(e) {
+            isRecording = true;
+            shortsScrollUpShortcut.value = "";
+            shortsScrollUpShortcut.placeholder = "Нажмите комбинацию клавиш...";
+        });
+        
+        shortsScrollUpShortcut.addEventListener("blur", function() {
+            isRecording = false;
+        });
+        
+        shortsScrollUpShortcut.addEventListener("keydown", function(e) {
+            if (!isRecording) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (e.key === 'Tab') {
+                return;
+            }
+            
+            const keys = [];
+            if (e.ctrlKey) keys.push('ctrl');
+            if (e.shiftKey) keys.push('shift');
+            if (e.altKey) keys.push('alt');
+            if (e.metaKey) keys.push('meta');
+            
+            const key = e.key.toLowerCase();
+            if (key && !['control', 'shift', 'alt', 'meta', 'capslock', 'tab'].includes(key)) {
+                keys.push(key);
+                
+                if (keys.length > 0) {
+                    const keysStr = keys.join('+');
+                    shortsScrollUpShortcut.value = keysStr;
+                    chrome.storage.local.set({ shortsScrollUpShortcut: keys });
+                    
+                    setTimeout(() => {
+                        shortsScrollUpShortcut.blur();
+                    }, 100);
+                }
+            }
+        });
+        
+        shortsScrollUpShortcut.addEventListener("keypress", function(e) {
+            if (isRecording) {
+                e.preventDefault();
+            }
+        });
+        
+        shortsScrollUpShortcut.addEventListener("paste", function(e) {
+            e.preventDefault();
+        });
+        
+        shortsScrollUpShortcut.addEventListener("change", handleShortcutInputChange(shortsScrollUpShortcut, "shortsScrollUpShortcut", "e"));
+    }
+    // Normal Video Speed Enabled Toggle
+    if (normalVideoSpeedEnabled) {
+        normalVideoSpeedEnabled.addEventListener("change", (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ normalVideoSpeedEnabled: enabled });
+        });
+    }
+    // Normal Video Speed Shortcut - запись комбинации клавиш
+    if (normalVideoSpeedShortcut) {
+        let isRecording = false;
+        
+        normalVideoSpeedShortcut.addEventListener("focus", function(e) {
+            isRecording = true;
+            normalVideoSpeedShortcut.value = "";
+            normalVideoSpeedShortcut.placeholder = "Нажмите комбинацию клавиш...";
+        });
+        
+        normalVideoSpeedShortcut.addEventListener("blur", function() {
+            isRecording = false;
+        });
+        
+        normalVideoSpeedShortcut.addEventListener("keydown", function(e) {
+            if (!isRecording) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (e.key === 'Tab') {
+                return;
+            }
+            
+            const keys = [];
+            if (e.ctrlKey) keys.push('ctrl');
+            if (e.shiftKey) keys.push('shift');
+            if (e.altKey) keys.push('alt');
+            if (e.metaKey) keys.push('meta');
+            
+            const key = e.key.toLowerCase();
+            if (key && !['control', 'shift', 'alt', 'meta', 'capslock', 'tab'].includes(key)) {
+                keys.push(key);
+                
+                if (keys.length > 0) {
+                    const keysStr = keys.join('+');
+                    normalVideoSpeedShortcut.value = keysStr;
+                    chrome.storage.local.set({ normalVideoSpeedShortcut: keys });
+                    
+                    setTimeout(() => {
+                        normalVideoSpeedShortcut.blur();
+                    }, 100);
+                }
+            }
+        });
+        
+        normalVideoSpeedShortcut.addEventListener("keypress", function(e) {
+            if (isRecording) {
+                e.preventDefault();
+            }
+        });
+        
+        normalVideoSpeedShortcut.addEventListener("paste", function(e) {
+            e.preventDefault();
+        });
+        
+        normalVideoSpeedShortcut.addEventListener("change", handleShortcutInputChange(normalVideoSpeedShortcut, "normalVideoSpeedShortcut", "shift+s"));
     }
     // Progress Bar Settings
     if (progressBarEnabled) {
@@ -452,10 +721,92 @@ function setupEventListeners() {
             if (scrubberImageSizeValue) scrubberImageSizeValue.textContent = "40";
         });
     }
+    // Hide Controls Toggle
+    if (hideControlsEnabled) {
+        hideControlsEnabled.addEventListener("change", (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ hideControlsEnabled: enabled });
+        });
+    }
+    // Hide Controls Shortcut - запись комбинации клавиш
+    if (hideControlsShortcut) {
+        let isRecording = false;
+        
+        // При фокусе на поле начинаем запись
+        hideControlsShortcut.addEventListener("focus", function(e) {
+            isRecording = true;
+            hideControlsShortcut.value = "";
+            hideControlsShortcut.placeholder = "Нажмите комбинацию клавиш...";
+        });
+        
+        // При потере фокуса прекращаем запись
+        hideControlsShortcut.addEventListener("blur", function() {
+            isRecording = false;
+        });
+        
+        // Записываем комбинацию клавиш
+        hideControlsShortcut.addEventListener("keydown", function(e) {
+            if (!isRecording) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Игнорируем клавиши, которые используются для навигации
+            if (e.key === 'Tab') {
+                return; // Разрешаем Tab для выхода из поля
+            }
+            
+            // Собираем комбинацию клавиш
+            const keys = [];
+            if (e.ctrlKey) keys.push('ctrl');
+            if (e.shiftKey) keys.push('shift');
+            if (e.altKey) keys.push('alt');
+            if (e.metaKey) keys.push('meta');
+            
+            // Добавляем основную клавишу (если это не модификатор)
+            const key = e.key.toLowerCase();
+            if (key && !['control', 'shift', 'alt', 'meta', 'capslock', 'tab'].includes(key)) {
+                keys.push(key);
+                
+                // Минимум должна быть одна клавиша
+                if (keys.length > 0) {
+                    // Форматируем и отображаем комбинацию
+                    const keysStr = keys.join('+');
+                    hideControlsShortcut.value = keysStr;
+                    
+                    // Сохраняем в storage
+                    chrome.storage.local.set({ hideControlsShortcut: keys });
+                    
+                    // Убираем фокус после записи
+                    setTimeout(() => {
+                        hideControlsShortcut.blur();
+                    }, 100);
+                }
+            }
+        });
+        
+        // Предотвращаем обычный ввод текста
+        hideControlsShortcut.addEventListener("keypress", function(e) {
+            if (isRecording) {
+                e.preventDefault();
+            }
+        });
+        
+        // Предотвращаем ввод текста через paste
+        hideControlsShortcut.addEventListener("paste", function(e) {
+            e.preventDefault();
+        });
+        
+        // Обработчик для случая, если пользователь все же введет текст вручную (резервный)
+        hideControlsShortcut.addEventListener("change", handleShortcutInputChange(hideControlsShortcut, "hideControlsShortcut", "shift+h"));
+    }
     // Listen for storage changes to update UI
     chrome.storage.onChanged.addListener((changes) => {
         if (changes["applicationIsOn"]?.newValue !== undefined && statusToggle) {
             statusToggle.checked = changes["applicationIsOn"].newValue;
+        }
+        if (changes["hideControlsEnabled"]?.newValue !== undefined && hideControlsEnabled) {
+            hideControlsEnabled.checked = changes["hideControlsEnabled"].newValue;
         }
         if (changes["progressBarColors"]?.newValue !== undefined) {
             const colors = changes["progressBarColors"].newValue;
@@ -597,8 +948,17 @@ function getAllSettingsForPopup() {
         "scrollOnComments",
         "scrollOnNoTags",
         "additionalScrollDelay",
+        "shortsSpeedEnabled",
         "shortsSelectedSpeed",
+        "shortsSpeedShortcut",
+        "shortsScrollEnabled",
+        "shortsScrollDownShortcut",
+        "shortsScrollUpShortcut",
+        "normalVideoSpeedEnabled",
+        "normalVideoSpeedShortcut",
         "progressBarColors",
+        "hideControlsEnabled",
+        "hideControlsShortcut",
     ];
     chrome.storage.local.get(keysToGet, (result) => {
         // Master Status Toggle
@@ -663,9 +1023,37 @@ function getAllSettingsForPopup() {
         if (scrollOnNoTagsInput) {
             scrollOnNoTagsInput.checked = result.scrollOnNoTags ?? false;
         }
+        // Shorts Speed Enabled
+        if (shortsSpeedEnabled) {
+            shortsSpeedEnabled.checked = result.shortsSpeedEnabled ?? true;
+        }
         // Shorts Speed Select
         if (shortsSpeedSelect) {
             shortsSpeedSelect.value = (result.shortsSelectedSpeed ?? 2).toString();
+        }
+        // Shorts Speed Shortcut
+        if (shortsSpeedShortcut) {
+            shortsSpeedShortcut.value = (result.shortsSpeedShortcut ?? ["shift", "s"]).join("+");
+        }
+        // Shorts Scroll Enabled
+        if (shortsScrollEnabled) {
+            shortsScrollEnabled.checked = result.shortsScrollEnabled ?? true;
+        }
+        // Shorts Scroll Down Shortcut
+        if (shortsScrollDownShortcut) {
+            shortsScrollDownShortcut.value = (result.shortsScrollDownShortcut ?? ["d"]).join("+");
+        }
+        // Shorts Scroll Up Shortcut
+        if (shortsScrollUpShortcut) {
+            shortsScrollUpShortcut.value = (result.shortsScrollUpShortcut ?? ["e"]).join("+");
+        }
+        // Normal Video Speed Enabled
+        if (normalVideoSpeedEnabled) {
+            normalVideoSpeedEnabled.checked = result.normalVideoSpeedEnabled ?? true;
+        }
+        // Normal Video Speed Shortcut
+        if (normalVideoSpeedShortcut) {
+            normalVideoSpeedShortcut.value = (result.normalVideoSpeedShortcut ?? ["shift", "s"]).join("+");
         }
         // Progress Bar Settings
         const progressBarColors = result.progressBarColors || {
@@ -702,6 +1090,14 @@ function getAllSettingsForPopup() {
             }
             bufferColorInput.value = bufferColor;
         }
+        // Hide Controls Enabled
+        if (hideControlsEnabled) {
+            hideControlsEnabled.checked = result.hideControlsEnabled || false;
+        }
+        // Hide Controls Shortcut
+        if (hideControlsShortcut) {
+            hideControlsShortcut.value = (result.hideControlsShortcut ?? ["shift", "h"]).join("+");
+        }
         // Initialize default values in storage if they were undefined
         const defaultsToSet = {};
         if (result.applicationIsOn === undefined) defaultsToSet.applicationIsOn = true;
@@ -724,6 +1120,12 @@ function getAllSettingsForPopup() {
         if (result.scrollOnNoTags === undefined) defaultsToSet.scrollOnNoTags = false;
         if (result.additionalScrollDelay === undefined) defaultsToSet.additionalScrollDelay = 0;
         if (result.shortsSelectedSpeed === undefined) defaultsToSet.shortsSelectedSpeed = 2;
+        if (result.shortsSpeedEnabled === undefined) defaultsToSet.shortsSpeedEnabled = true;
+        if (result.shortsSpeedShortcut === undefined) defaultsToSet.shortsSpeedShortcut = ["shift", "s"];
+        if (result.shortsScrollDownShortcut === undefined) defaultsToSet.shortsScrollDownShortcut = ["d"];
+        if (result.shortsScrollUpShortcut === undefined) defaultsToSet.shortsScrollUpShortcut = ["e"];
+        if (result.normalVideoSpeedEnabled === undefined) defaultsToSet.normalVideoSpeedEnabled = true;
+        if (result.normalVideoSpeedShortcut === undefined) defaultsToSet.normalVideoSpeedShortcut = ["shift", "s"];
         if (result.progressBarColors === undefined) {
             defaultsToSet.progressBarColors = {
                 progressColor: "#ff0000",
@@ -735,6 +1137,8 @@ function getAllSettingsForPopup() {
                 enabled: false
             };
         }
+        if (result.hideControlsEnabled === undefined) defaultsToSet.hideControlsEnabled = false;
+        if (result.hideControlsShortcut === undefined) defaultsToSet.hideControlsShortcut = ["shift", "h"];
         if (Object.keys(defaultsToSet).length > 0) {
             chrome.storage.local.set(defaultsToSet);
         }

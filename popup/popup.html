@@ -29,17 +29,79 @@
     </header>
     <div id="error-message"></div>
     <div class="form-group" style="margin-top: 12px;">
-      <label for="shorts-speed-select">
-        <i class="fas fa-tachometer-alt"></i> Скорость воспроизведения Shorts
+      <label for="shorts-speed-enabled" style="cursor: pointer;">
+        <i class="fas fa-tachometer-alt"></i> Ускорение воспроизведения Shorts
       </label>
-      <select id="shorts-speed-select" style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); cursor: pointer;">
+      <div class="toggle-switch-label" style="margin-top: 8px;">
+        <span class="toggle-switch-text">Включить</span>
+        <label class="status-toggle-label" for="shorts-speed-enabled" style="cursor: pointer;">
+          <div class="toggle-switch">
+            <input type="checkbox" id="shorts-speed-enabled" />
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+      <div class="description" style="margin-top: 8px;">Включить возможность ускорения воспроизведения Shorts</div>
+      <label for="shorts-speed-select" style="margin-top: 12px; display: block;">
+        <i class="fas fa-sliders-h"></i> Скорость ускорения
+      </label>
+      <select id="shorts-speed-select" style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); cursor: pointer; margin-top: 4px;">
         <option value="1.2">1.2x</option>
         <option value="1.5">1.5x</option>
         <option value="1.7">1.7x</option>
         <option value="2" selected>2x</option>
         <option value="2.5">2.5x</option>
       </select>
-      <div class="description">Выберите скорость для ускорения Shorts. Переключить скорость можно кнопкой на экране или сочетанием клавиш <b>Shift+S</b> (англ) / <b>Shift+Ы</b> (рус).</div>
+      <div class="description" style="margin-top: 8px;">Выберите скорость для ускорения Shorts. Переключить скорость можно кнопкой на экране.</div>
+      <label for="shorts-speed-shortcut" style="margin-top: 12px; display: block;">
+        <i class="fas fa-keyboard"></i> Горячие клавиши для переключения скорости
+      </label>
+      <input type="text" id="shorts-speed-shortcut" placeholder="Нажмите комбинацию клавиш..." style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); margin-top: 4px;" />
+      <div class="description">Кликните в поле и нажмите комбинацию клавиш для записи (например: Shift+S, Ctrl+K)</div>
+      <label for="shorts-scroll-enabled" style="margin-top: 12px; display: block; cursor: pointer;">
+        <i class="fas fa-arrows-alt-v"></i> Прокрутка Shorts клавишами
+      </label>
+      <div class="toggle-switch-label" style="margin-top: 8px;">
+        <span class="toggle-switch-text">Включить</span>
+        <label class="status-toggle-label" for="shorts-scroll-enabled" style="cursor: pointer;">
+          <div class="toggle-switch">
+            <input type="checkbox" id="shorts-scroll-enabled" />
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+      <div class="description" style="margin-top: 8px;">Включить возможность прокрутки Shorts с помощью горячих клавиш</div>
+      <label for="shorts-scroll-down-shortcut" style="margin-top: 12px; display: block;">
+        <i class="fas fa-arrow-down"></i> Горячие клавиши для прокрутки вниз (следующий Short)
+      </label>
+      <input type="text" id="shorts-scroll-down-shortcut" placeholder="Нажмите комбинацию клавиш..." style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); margin-top: 4px;" />
+      <div class="description" style="margin-top: 8px;">Кликните в поле и нажмите комбинацию клавиш для записи (например: D, В)</div>
+      <label for="shorts-scroll-up-shortcut" style="margin-top: 12px; display: block;">
+        <i class="fas fa-arrow-up"></i> Горячие клавиши для прокрутки вверх (предыдущий Short)
+      </label>
+      <input type="text" id="shorts-scroll-up-shortcut" placeholder="Нажмите комбинацию клавиш..." style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); margin-top: 4px;" />
+      <div class="description">Кликните в поле и нажмите комбинацию клавиш для записи (например: E, У)</div>
+    </div>
+
+    <div class="form-group" style="margin-top: 12px;">
+      <label for="normal-video-speed-enabled" style="cursor: pointer;">
+        <i class="fas fa-tachometer-alt"></i> Ускорение воспроизведения обычных видео
+      </label>
+      <div class="toggle-switch-label" style="margin-top: 8px;">
+        <span class="toggle-switch-text">Включить</span>
+        <label class="status-toggle-label" for="normal-video-speed-enabled" style="cursor: pointer;">
+          <div class="toggle-switch">
+            <input type="checkbox" id="normal-video-speed-enabled" />
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+      <div class="description" style="margin-top: 8px;">Включить возможность ускорения воспроизведения обычных видео</div>
+      <label for="normal-video-speed-shortcut" style="margin-top: 12px; display: block;">
+        <i class="fas fa-keyboard"></i> Горячие клавиши для переключения скорости
+      </label>
+      <input type="text" id="normal-video-speed-shortcut" placeholder="Нажмите комбинацию клавиш..." style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); margin-top: 4px;" />
+      <div class="description">Кликните в поле и нажмите комбинацию клавиш для записи (например: Shift+S, Ctrl+K)</div>
     </div>
     
     <div class="form-group" style="margin-top: 12px;">
@@ -110,6 +172,27 @@
       <button id="reset-progress-colors" style="width: 100%; margin-top: 12px; padding: 8px; background: var(--primary-accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
         <i class="fas fa-undo"></i> Сбросить к стандартным цветам
       </button>
+    </div>
+
+    <div class="form-group" style="margin-top: 12px;">
+      <label for="hide-controls-enabled" style="cursor: pointer;">
+        <i class="fas fa-eye-slash"></i> Отключить элементы управления воспроизведением
+      </label>
+      <div class="toggle-switch-label" style="margin-top: 8px;">
+        <span class="toggle-switch-text">Включить</span>
+        <label class="status-toggle-label" for="hide-controls-enabled" style="cursor: pointer;">
+          <div class="toggle-switch">
+            <input type="checkbox" id="hide-controls-enabled" />
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+      <div class="description">Включить возможность скрывать элементы управления через горячие клавиши. Используйте заданную комбинацию клавиш для переключения скрытия.</div>
+      <label for="hide-controls-shortcut" style="margin-top: 12px; display: block;">
+        <i class="fas fa-keyboard"></i> Горячие клавиши для переключения
+      </label>
+      <input type="text" id="hide-controls-shortcut" placeholder="Нажмите комбинацию клавиш..." style="width: 100%; padding: 0.5rem 0.7rem; background-color: var(--input-bg); border: 1.5px solid var(--input-border); border-radius: var(--border-radius-md); color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-family); margin-top: 4px;" />
+      <div class="description">Кликните в поле и нажмите комбинацию клавиш для записи (например: Shift+H, Ctrl+K)</div>
     </div>
     
     <script src="../dist/script.js"></script>

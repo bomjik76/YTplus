@@ -24,21 +24,27 @@ const RETRY_DELAY_MS = 500;
 // ------------------------------
 // SHORTS SPEED TOGGLE FEATURE
 // ------------------------------
+let shortsSpeedEnabled = true; // Включена ли функция ускорения для Shorts
 let shortsSpeedState = 1; // 1x или выбранная скорость
 let selectedSpeed = 2; // скорость для ускорения по умолчанию
 let speedOverlay = null;
 let speedToggleButton = null;
 let speedToggleButtonContainer = null;
 const SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
-const SPEED_TOGGLE_SHORTCUT = ['shift', 's']; // Hardcoded for now
+let shortsSpeedShortcut = ['shift', 's']; // Настраиваемая комбинация клавиш
+let shortsScrollEnabled = true; // Включена ли функция прокрутки Shorts
+let shortsScrollDownShortcut = ['d']; // Комбинация для прокрутки вниз (следующий Short)
+let shortsScrollUpShortcut = ['e']; // Комбинация для прокрутки вверх (предыдущий Short)
 let pressedKeys = [];
 // ------------------------------
 // NORMAL VIDEO SPEED TOGGLE FEATURE
 // ------------------------------
+let normalVideoSpeedEnabled = true; // Включена ли функция ускорения для обычных видео
 let normalVideoSpeedState = 1; // 1x или выбранная скорость
 let normalSelectedSpeed = 2; // скорость для ускорения по умолчанию
 let normalSpeedOverlay = null;
 const NORMAL_SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
+let normalVideoSpeedShortcut = ['shift', 's']; // Настраиваемая комбинация клавиш для обычных видео
 // ------------------------------
 // MAIN FUNCTIONS
 // ------------------------------
@@ -109,8 +115,18 @@ async function checkForNewShort() {
         currentVideoElement.removeAttribute("loop");
     }
     if (isShortsPage() && currentVideoElement) {
-        setShortsPlaybackSpeed(shortsSpeedState);
-        injectSpeedToggleButton();
+        // Применяем скорость только если функция включена
+        if (shortsSpeedEnabled) {
+            setShortsPlaybackSpeed(shortsSpeedState);
+            injectSpeedToggleButton();
+        } else {
+            // Если функция выключена, сбрасываем скорость на 1x и скрываем кнопку
+            if (shortsSpeedState !== 1) {
+                currentVideoElement.playbackRate = 1;
+                shortsSpeedState = 1;
+            }
+            removeSpeedUI();
+        }
     } else {
         // Удаляем кнопку, если не на странице Shorts или нет видео элемента
         removeSpeedUI();
@@ -306,7 +322,14 @@ function isShortsPage() {
             "shortCutKeys",
             "scrollDirection",
             "amountOfPlaysToSkip",
-            "shortsSelectedSpeed"
+            "shortsSpeedEnabled",
+            "shortsSelectedSpeed",
+            "shortsSpeedShortcut",
+            "shortsScrollEnabled",
+            "shortsScrollDownShortcut",
+            "shortsScrollUpShortcut",
+            "normalVideoSpeedEnabled",
+            "normalVideoSpeedShortcut"
         ], (result) => {
             console.log("[YT+]", {
                 AutoYTScrollerSettings: result,
@@ -321,8 +344,22 @@ function isShortsPage() {
             }
             if (result["amountOfPlaysToSkip"])
                 amountOfPlaysToSkip = result["amountOfPlaysToSkip"];
+            if (result["shortsSpeedEnabled"] !== undefined)
+                shortsSpeedEnabled = result["shortsSpeedEnabled"];
             if (result["shortsSelectedSpeed"])
                 selectedSpeed = result["shortsSelectedSpeed"];
+            if (result["shortsSpeedShortcut"])
+                shortsSpeedShortcut = result["shortsSpeedShortcut"];
+            if (result["shortsScrollEnabled"] !== undefined)
+                shortsScrollEnabled = result["shortsScrollEnabled"];
+            if (result["shortsScrollDownShortcut"])
+                shortsScrollDownShortcut = result["shortsScrollDownShortcut"];
+            if (result["shortsScrollUpShortcut"])
+                shortsScrollUpShortcut = result["shortsScrollUpShortcut"];
+            if (result["normalVideoSpeedEnabled"] !== undefined)
+                normalVideoSpeedEnabled = result["normalVideoSpeedEnabled"];
+            if (result["normalVideoSpeedShortcut"])
+                normalVideoSpeedShortcut = result["normalVideoSpeedShortcut"];
             shortCutListener();
         });
         chrome.storage.onChanged.addListener((result) => {
@@ -355,6 +392,45 @@ function isShortsPage() {
                         speedText.textContent = `${selectedSpeed}x`;
                     }
                 }
+            }
+            let newShortsSpeedEnabled = result["shortsSpeedEnabled"]?.newValue;
+            if (newShortsSpeedEnabled !== undefined) {
+                shortsSpeedEnabled = newShortsSpeedEnabled;
+                // Если функция выключена, сбрасываем скорость на 1x
+                if (!shortsSpeedEnabled && currentVideoElement && shortsSpeedState !== 1) {
+                    setShortsPlaybackSpeed(1);
+                }
+            }
+            let newShortsSpeedShortcut = result["shortsSpeedShortcut"]?.newValue;
+            if (newShortsSpeedShortcut != undefined) {
+                shortsSpeedShortcut = newShortsSpeedShortcut;
+            }
+            let newShortsScrollEnabled = result["shortsScrollEnabled"]?.newValue;
+            if (newShortsScrollEnabled !== undefined) {
+                shortsScrollEnabled = newShortsScrollEnabled;
+            }
+            let newShortsScrollDownShortcut = result["shortsScrollDownShortcut"]?.newValue;
+            if (newShortsScrollDownShortcut != undefined) {
+                shortsScrollDownShortcut = newShortsScrollDownShortcut;
+            }
+            let newShortsScrollUpShortcut = result["shortsScrollUpShortcut"]?.newValue;
+            if (newShortsScrollUpShortcut != undefined) {
+                shortsScrollUpShortcut = newShortsScrollUpShortcut;
+            }
+            let newNormalVideoSpeedEnabled = result["normalVideoSpeedEnabled"]?.newValue;
+            if (newNormalVideoSpeedEnabled !== undefined) {
+                normalVideoSpeedEnabled = newNormalVideoSpeedEnabled;
+                // Если функция выключена, сбрасываем скорость на 1x
+                if (!normalVideoSpeedEnabled) {
+                    const video = document.querySelector('video');
+                    if (video && normalVideoSpeedState !== 1) {
+                        setNormalVideoPlaybackSpeed(1);
+                    }
+                }
+            }
+            let newNormalVideoSpeedShortcut = result["normalVideoSpeedShortcut"]?.newValue;
+            if (newNormalVideoSpeedShortcut != undefined) {
+                normalVideoSpeedShortcut = newNormalVideoSpeedShortcut;
             }
         });
     })();
@@ -401,6 +477,8 @@ function setShortsPlaybackSpeed(speed) {
 }
 function toggleShortsPlaybackSpeed() {
     if (!currentVideoElement) return;
+    // Проверяем, включена ли функция ускорения
+    if (!shortsSpeedEnabled) return;
     const newSpeed = shortsSpeedState === 1 ? selectedSpeed : 1;
     setShortsPlaybackSpeed(newSpeed);
 }
@@ -541,6 +619,11 @@ function updateSpeedToggleButton(speed) {
 }
 function injectSpeedToggleButton() {
     if (!currentVideoElement) return;
+    // Проверяем, включена ли функция ускорения
+    if (!shortsSpeedEnabled) {
+        removeSpeedUI();
+        return;
+    }
     
     // Находим активный Short (как в оригинальном расширении)
     const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
@@ -583,36 +666,126 @@ function removeSpeedUI() {
     speedToggleButtonContainer = null;
     speedToggleButton = null;
 }
-// Listen for Shift+S
+// Обработчик горячих клавиш для переключения скорости Shorts
 (function shortsSpeedShortcutListener() {
     document.addEventListener('keydown', function(e) {
-        // Поддержка Shift+S (англ) и Shift+ы (рус)
-        if (e.shiftKey && (e.key === 'S' || e.key === 's' || e.key === 'ы' || e.key === 'Ы')) {
-            if (isShortsPage() && currentVideoElement) {
-                e.preventDefault();
-                toggleShortsPlaybackSpeed();
-            }
+        if (!e.key) return;
+        if (!isShortsPage() || !currentVideoElement) return;
+        // Проверяем, включена ли функция ускорения
+        if (!shortsSpeedEnabled) return;
+        
+        // Используем функцию проверки комбинации с поддержкой альтернативной раскладки
+        if (checkShortsSpeedKeys(shortsSpeedShortcut, e)) {
+            e.preventDefault();
+            toggleShortsPlaybackSpeed();
         }
     });
 })();
-// Listen for D/В (вниз) и E/У (вверх) для прокрутки Shorts
+
+// Функция для проверки комбинации клавиш для скорости Shorts (с поддержкой альтернативной раскладки)
+function checkShortsSpeedKeys(keys, event) {
+    if (!keys || keys.length === 0)
+        return false;
+    
+    // Собираем текущие нажатые клавиши
+    const pressed = [];
+    if (event.ctrlKey) pressed.push('ctrl');
+    if (event.shiftKey) pressed.push('shift');
+    if (event.altKey) pressed.push('alt');
+    if (event.metaKey) pressed.push('meta');
+    
+    // Добавляем основную клавишу (если это не модификатор)
+    const key = event.key.toLowerCase();
+    if (key && !['control', 'shift', 'alt', 'meta', 'capslock'].includes(key)) {
+        pressed.push(key);
+    }
+    
+    // Проверяем соответствие
+    if (pressed.length !== keys.length) return false;
+    
+    // Проверяем точное соответствие
+    const exactMatch = pressed.every((pressedKey, index) => pressedKey === keys[index]);
+    if (exactMatch) return true;
+    
+    // Проверяем соответствие с учетом альтернативной раскладки
+    // Модификаторы должны точно совпадать
+    for (let i = 0; i < pressed.length - 1; i++) {
+        if (pressed[i] !== keys[i]) return false;
+    }
+    
+    // Основная клавиша может быть в альтернативной раскладке
+    const lastPressedKey = pressed[pressed.length - 1];
+    const lastKeyInShortcut = keys[keys.length - 1];
+    
+    // Проверяем точное совпадение или альтернативную раскладку
+    return lastPressedKey === lastKeyInShortcut || 
+           getAlternativeLayout(lastPressedKey) === lastKeyInShortcut ||
+           lastPressedKey === getAlternativeLayout(lastKeyInShortcut);
+}
+// Обработчик горячих клавиш для прокрутки Shorts вверх/вниз
 (function shortsScrollKeyListener() {
     document.addEventListener('keydown', function(e) {
+        if (!e.key) return;
         if (!isShortsPage() || !currentVideoElement) return;
-        // D (англ) или В (рус) — вниз (следующий)
-        if (e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') {
+        // Проверяем, включена ли функция прокрутки
+        if (!shortsScrollEnabled) return;
+        
+        // Проверяем комбинацию для прокрутки вниз (следующий Short)
+        if (checkShortsScrollKeys(shortsScrollDownShortcut, e)) {
             e.preventDefault();
             scrollDirection = 1;
             scrollToNextShort(currentShortId);
         }
-        // E (англ) или У (рус) — вверх (предыдущий)
-        if (e.key === 'e' || e.key === 'E' || e.key === 'у' || e.key === 'У') {
+        
+        // Проверяем комбинацию для прокрутки вверх (предыдущий Short)
+        if (checkShortsScrollKeys(shortsScrollUpShortcut, e)) {
             e.preventDefault();
             scrollDirection = -1;
             scrollToNextShort(currentShortId);
         }
     });
 })();
+
+// Функция для проверки комбинации клавиш для прокрутки Shorts (с поддержкой альтернативной раскладки)
+function checkShortsScrollKeys(keys, event) {
+    if (!keys || keys.length === 0)
+        return false;
+    
+    // Собираем текущие нажатые клавиши
+    const pressed = [];
+    if (event.ctrlKey) pressed.push('ctrl');
+    if (event.shiftKey) pressed.push('shift');
+    if (event.altKey) pressed.push('alt');
+    if (event.metaKey) pressed.push('meta');
+    
+    // Добавляем основную клавишу (если это не модификатор)
+    const key = event.key.toLowerCase();
+    if (key && !['control', 'shift', 'alt', 'meta', 'capslock'].includes(key)) {
+        pressed.push(key);
+    }
+    
+    // Проверяем соответствие
+    if (pressed.length !== keys.length) return false;
+    
+    // Проверяем точное соответствие
+    const exactMatch = pressed.every((pressedKey, index) => pressedKey === keys[index]);
+    if (exactMatch) return true;
+    
+    // Проверяем соответствие с учетом альтернативной раскладки
+    // Модификаторы должны точно совпадать
+    for (let i = 0; i < pressed.length - 1; i++) {
+        if (pressed[i] !== keys[i]) return false;
+    }
+    
+    // Основная клавиша может быть в альтернативной раскладке
+    const lastPressedKey = pressed[pressed.length - 1];
+    const lastKeyInShortcut = keys[keys.length - 1];
+    
+    // Проверяем точное совпадение или альтернативную раскладку
+    return lastPressedKey === lastKeyInShortcut || 
+           getAlternativeLayout(lastPressedKey) === lastKeyInShortcut ||
+           lastPressedKey === getAlternativeLayout(lastKeyInShortcut);
+}
 
 // ------------------------------
 // NORMAL VIDEO SPEED TOGGLE FEATURE
@@ -629,6 +802,8 @@ function setNormalVideoPlaybackSpeed(speed) {
 function toggleNormalVideoPlaybackSpeed() {
     const video = document.querySelector('video');
     if (!video) return;
+    // Проверяем, включена ли функция ускорения
+    if (!normalVideoSpeedEnabled) return;
     if (normalVideoSpeedState === 1) {
         setNormalVideoPlaybackSpeed(normalSelectedSpeed);
     } else {
@@ -674,21 +849,65 @@ function showNormalSpeedOverlay(speed) {
         if (normalSpeedOverlay) normalSpeedOverlay.style.opacity = '0';
     }, 1200);
 }
-// Listen for Shift+S for normal videos
+// Обработчик горячих клавиш для переключения скорости обычных видео
 (function normalVideoSpeedShortcutListener() {
     document.addEventListener('keydown', function(e) {
-        // Поддержка Shift+S (англ) и Shift+ы (рус)
-        if (e.shiftKey && (e.key === 'S' || e.key === 's' || e.key === 'ы' || e.key === 'Ы')) {
-            if (!isShortsPage()) {
-                const video = document.querySelector('video');
-                if (video) {
-                    e.preventDefault();
-                    toggleNormalVideoPlaybackSpeed();
-                }
+        if (!e.key) return;
+        if (isShortsPage()) return;
+        // Проверяем, включена ли функция ускорения
+        if (!normalVideoSpeedEnabled) return;
+        
+        // Используем функцию проверки комбинации с поддержкой альтернативной раскладки
+        if (checkNormalVideoSpeedKeys(normalVideoSpeedShortcut, e)) {
+            const video = document.querySelector('video');
+            if (video) {
+                e.preventDefault();
+                toggleNormalVideoPlaybackSpeed();
             }
         }
     });
 })();
+
+// Функция для проверки комбинации клавиш для скорости обычных видео (с поддержкой альтернативной раскладки)
+function checkNormalVideoSpeedKeys(keys, event) {
+    if (!keys || keys.length === 0)
+        return false;
+    
+    // Собираем текущие нажатые клавиши
+    const pressed = [];
+    if (event.ctrlKey) pressed.push('ctrl');
+    if (event.shiftKey) pressed.push('shift');
+    if (event.altKey) pressed.push('alt');
+    if (event.metaKey) pressed.push('meta');
+    
+    // Добавляем основную клавишу (если это не модификатор)
+    const key = event.key.toLowerCase();
+    if (key && !['control', 'shift', 'alt', 'meta', 'capslock'].includes(key)) {
+        pressed.push(key);
+    }
+    
+    // Проверяем соответствие
+    if (pressed.length !== keys.length) return false;
+    
+    // Проверяем точное соответствие
+    const exactMatch = pressed.every((pressedKey, index) => pressedKey === keys[index]);
+    if (exactMatch) return true;
+    
+    // Проверяем соответствие с учетом альтернативной раскладки
+    // Модификаторы должны точно совпадать
+    for (let i = 0; i < pressed.length - 1; i++) {
+        if (pressed[i] !== keys[i]) return false;
+    }
+    
+    // Основная клавиша может быть в альтернативной раскладке
+    const lastPressedKey = pressed[pressed.length - 1];
+    const lastKeyInShortcut = keys[keys.length - 1];
+    
+    // Проверяем точное совпадение или альтернативную раскладку
+    return lastPressedKey === lastKeyInShortcut || 
+           getAlternativeLayout(lastPressedKey) === lastKeyInShortcut ||
+           lastPressedKey === getAlternativeLayout(lastKeyInShortcut);
+}
 
 // ------------------------------
 // PROGRESS BAR CUSTOMIZATION FEATURE
@@ -844,4 +1063,226 @@ function updateProgressBarColors(colors) {
 
     // Применяем стили сразу
     applyProgressBarStyles();
+})();
+
+// ------------------------------
+// HIDE CONTROLS FEATURE
+// ------------------------------
+let hideControlsStyle = null;
+let hideControlsEnabled = false; // Включена ли функция (работают ли горячие клавиши)
+let controlsHidden = false; // Скрыты ли элементы управления
+let hideControlsShortcut = ['shift', 'h'];
+
+// Функция для создания и применения стилей скрытия элементов управления
+function applyHideControlsStyles() {
+    // Удаляем старые стили, если они есть
+    if (hideControlsStyle && hideControlsStyle.parentNode) {
+        hideControlsStyle.parentNode.removeChild(hideControlsStyle);
+        hideControlsStyle = null;
+    }
+
+    // Применяем стили только если элементы управления должны быть скрыты
+    if (!controlsHidden) {
+        return;
+    }
+
+    // Создаем новый элемент style
+    hideControlsStyle = document.createElement('style');
+    hideControlsStyle.id = 'ytplus-hide-controls-styles';
+    
+    const css = `
+        /* Скрытие элементов управления YouTube для обычных видео */
+        .ytp-chrome-bottom,
+        .ytp-chrome-controls,
+        .ytp-progress-bar-container,
+        .ytp-progress-bar,
+        .ytp-gradient-bottom,
+        .ytp-gradient-top,
+        .ytp-player-controls,
+        .ytp-ce-shadow,
+        .ytp-ce-element,
+        .ytp-show-cards-title,
+        .ytp-title,
+        .ytp-title-channel,
+        .ytp-chrome-top,
+        .ytp-watermark,
+        .ytp-pause-overlay,
+        .ytp-cued-thumbnail-overlay,
+        .branding-img.iv-click-target {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        
+        /* Скрытие элементов управления для Shorts */
+        ytd-reel-player-overlay-renderer #controls,
+        ytd-reel-player-overlay-renderer #gradient,
+        ytd-reel-player-overlay-renderer .ytp-progress-bar-container,
+        ytd-reel-player-overlay-renderer .ytp-progress-bar,
+        ytd-reel-player-overlay-renderer ytd-reel-player-controls-renderer,
+        ytd-reel-player-overlay-renderer #gradient-bottom,
+        ytd-reel-player-overlay-renderer #gradient-top {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        
+        /* Скрытие прогресс-бара везде */
+        .ytp-progress-list,
+        .ytp-scroll-container,
+        .ytp-timed-markers-container {
+            display: none !important;
+        }
+        
+        /* Убираем отступы снизу, если они были из-за панели управления */
+        #ytp-gradient-bottom {
+            display: none !important;
+        }
+    `;
+    
+    hideControlsStyle.textContent = css;
+    document.head.appendChild(hideControlsStyle);
+}
+
+// Функция для переключения скрытия элементов управления (вызывается горячими клавишами)
+function toggleHideControls() {
+    // Горячие клавиши работают только если функция включена
+    if (!hideControlsEnabled) {
+        return;
+    }
+    
+    controlsHidden = !controlsHidden;
+    chrome.storage.local.set({ controlsHidden: controlsHidden });
+    applyHideControlsStyles();
+}
+
+// Маппинг английских и русских букв на одной позиции клавиатуры
+const keyboardLayoutMap = {
+    // Английский -> Русский
+    'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з',
+    '[': 'х', ']': 'ъ', 'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л',
+    'l': 'д', ';': 'ж', "'": 'э', 'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь',
+    ',': 'б', '.': 'ю', '/': '.',
+    // Русский -> Английский (обратный маппинг)
+    'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u', 'ш': 'i', 'щ': 'o', 'з': 'p',
+    'х': '[', 'ъ': ']', 'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h', 'о': 'j', 'л': 'k',
+    'д': 'l', 'ж': ';', 'э': "'", 'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm',
+    'б': ',', 'ю': '.'
+};
+
+// Функция для получения альтернативной раскладки клавиши
+function getAlternativeLayout(key) {
+    return keyboardLayoutMap[key] || null;
+}
+
+// Функция для проверки комбинации клавиш
+function checkHideControlsKeys(keys, event) {
+    if (!keys || keys.length === 0)
+        return false;
+    
+    // Собираем текущие нажатые клавиши
+    const pressed = [];
+    if (event.ctrlKey) pressed.push('ctrl');
+    if (event.shiftKey) pressed.push('shift');
+    if (event.altKey) pressed.push('alt');
+    if (event.metaKey) pressed.push('meta');
+    
+    // Добавляем основную клавишу (если это не модификатор)
+    const key = event.key.toLowerCase();
+    if (key && !['control', 'shift', 'alt', 'meta', 'capslock'].includes(key)) {
+        pressed.push(key);
+    }
+    
+    // Проверяем соответствие
+    if (pressed.length !== keys.length) return false;
+    
+    // Проверяем точное соответствие
+    const exactMatch = pressed.every((pressedKey, index) => pressedKey === keys[index]);
+    if (exactMatch) return true;
+    
+    // Проверяем соответствие с учетом альтернативной раскладки
+    // Модификаторы должны точно совпадать
+    for (let i = 0; i < pressed.length - 1; i++) {
+        if (pressed[i] !== keys[i]) return false;
+    }
+    
+    // Основная клавиша может быть в альтернативной раскладке
+    const lastPressedKey = pressed[pressed.length - 1];
+    const lastKeyInShortcut = keys[keys.length - 1];
+    
+    // Проверяем точное совпадение или альтернативную раскладку
+    return lastPressedKey === lastKeyInShortcut || 
+           getAlternativeLayout(lastPressedKey) === lastKeyInShortcut ||
+           lastPressedKey === getAlternativeLayout(lastKeyInShortcut);
+}
+
+// Инициализация скрытия элементов управления
+(function initHideControls() {
+    // Загружаем настройки из storage
+    chrome.storage.local.get(['hideControlsEnabled', 'controlsHidden', 'hideControlsShortcut'], (result) => {
+        hideControlsEnabled = result.hideControlsEnabled || false;
+        controlsHidden = result.controlsHidden || false;
+        // Если функция выключена - гарантируем, что элементы управления видны
+        if (!hideControlsEnabled) {
+            controlsHidden = false;
+            chrome.storage.local.set({ controlsHidden: false });
+        }
+        if (result.hideControlsShortcut) {
+            hideControlsShortcut = result.hideControlsShortcut;
+        }
+        applyHideControlsStyles();
+    });
+
+    // Слушаем изменения настроек
+    chrome.storage.onChanged.addListener((changes) => {
+        if (changes.hideControlsEnabled) {
+            hideControlsEnabled = changes.hideControlsEnabled.newValue || false;
+            // Если функция выключена - показываем элементы управления
+            if (!hideControlsEnabled) {
+                controlsHidden = false;
+                chrome.storage.local.set({ controlsHidden: false });
+            }
+            applyHideControlsStyles();
+        }
+        if (changes.controlsHidden) {
+            controlsHidden = changes.controlsHidden.newValue || false;
+            applyHideControlsStyles();
+        }
+        if (changes.hideControlsShortcut) {
+            hideControlsShortcut = changes.hideControlsShortcut.newValue || ['shift', 'h'];
+        }
+    });
+
+    // Применяем стили при загрузке страницы и при изменении DOM (для динамического контента YouTube)
+    const observer = new MutationObserver(() => {
+        if (controlsHidden && (!hideControlsStyle || !document.head.contains(hideControlsStyle))) {
+            applyHideControlsStyles();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // Применяем стили сразу
+    applyHideControlsStyles();
+})();
+
+// Обработчик горячих клавиш для переключения скрытия элементов управления
+(function hideControlsShortcutListener() {
+    document.addEventListener('keydown', function(e) {
+        if (!e.key) return;
+        
+        // Горячие клавиши работают только если функция включена
+        if (!hideControlsEnabled) return;
+        
+        // Проверяем комбинацию
+        if (checkHideControlsKeys(hideControlsShortcut, e)) {
+            e.preventDefault();
+            toggleHideControls();
+        }
+    });
 })();
