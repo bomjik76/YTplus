@@ -48,30 +48,26 @@ const hideControlsShortcut = document.querySelector("#hide-controls-shortcut");
 // Navigation Elements
 const navItems = document.querySelectorAll(".nav-item");
 const contentPanels = document.querySelectorAll(".content-panel");
-// Call Functions
-document.addEventListener('DOMContentLoaded', () => {
-    // Проверяем, что все элементы найдены
+// Call Functions - инициализация после выбора/загрузки языка
+function runPopupInit() {
     console.log("[YT+] Initializing popup...");
-    console.log("[YT+] progressBarEnabled found:", !!progressBarEnabled);
-    console.log("[YT+] progressBarSettings found:", !!progressBarSettings);
-    
     getAllSettingsForPopup();
-    setupNavigation();
+    if (navItems?.length) setupNavigation();
     setupEventListeners();
-    
-    // Дополнительная проверка после небольшой задержки
-    setTimeout(() => {
-        if (!progressBarEnabled) {
-            console.error("[YT+] progressBarEnabled still not found after initialization!");
-        }
-    }, 100);
+}
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof initI18n === 'function') {
+        initI18n(runPopupInit);
+    } else {
+        runPopupInit();
+    }
 });
 // Listens to toggle button click
 document.onclick = (e) => {
     if (e.target.classList.contains("toggleBtn"))
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             if (!tabs[0]?.url?.toLowerCase().includes("youtube.com")) {
-                errMsg.innerText = "Only can be toggled on Youtube!";
+                errMsg.innerText = typeof t === 'function' ? t("onlyOnYoutube") : "Only can be toggled on Youtube!";
             }
             else {
                 // get applicationIsOn from chrome storage
@@ -206,7 +202,7 @@ function setupEventListeners() {
         shortsSpeedShortcut.addEventListener("focus", function(e) {
             isRecording = true;
             shortsSpeedShortcut.value = "";
-            shortsSpeedShortcut.placeholder = "Нажмите комбинацию клавиш...";
+            shortsSpeedShortcut.placeholder = typeof t === 'function' ? t("shortcutPlaceholder") : "Press key combination...";
         });
         
         // При потере фокуса прекращаем запись
@@ -277,7 +273,7 @@ function setupEventListeners() {
         shortsScrollDownShortcut.addEventListener("focus", function(e) {
             isRecording = true;
             shortsScrollDownShortcut.value = "";
-            shortsScrollDownShortcut.placeholder = "Нажмите комбинацию клавиш...";
+            shortsScrollDownShortcut.placeholder = typeof t === 'function' ? t("shortcutPlaceholder") : "Press key combination...";
         });
         
         shortsScrollDownShortcut.addEventListener("blur", function() {
@@ -335,7 +331,7 @@ function setupEventListeners() {
         shortsScrollUpShortcut.addEventListener("focus", function(e) {
             isRecording = true;
             shortsScrollUpShortcut.value = "";
-            shortsScrollUpShortcut.placeholder = "Нажмите комбинацию клавиш...";
+            shortsScrollUpShortcut.placeholder = typeof t === 'function' ? t("shortcutPlaceholder") : "Press key combination...";
         });
         
         shortsScrollUpShortcut.addEventListener("blur", function() {
@@ -400,7 +396,7 @@ function setupEventListeners() {
         normalVideoSpeedShortcut.addEventListener("focus", function(e) {
             isRecording = true;
             normalVideoSpeedShortcut.value = "";
-            normalVideoSpeedShortcut.placeholder = "Нажмите комбинацию клавиш...";
+            normalVideoSpeedShortcut.placeholder = typeof t === 'function' ? t("shortcutPlaceholder") : "Press key combination...";
         });
         
         normalVideoSpeedShortcut.addEventListener("blur", function() {
@@ -617,7 +613,7 @@ function setupEventListeners() {
                 reader.readAsDataURL(file);
             } else {
                 if (errMsg) {
-                    errMsg.innerText = "Пожалуйста, выберите изображение";
+                    errMsg.innerText = typeof t === 'function' ? t("selectImage") : "Please select an image";
                     setTimeout(() => (errMsg.innerText = ""), 3000);
                 }
             }
@@ -628,14 +624,11 @@ function setupEventListeners() {
     if (removeScrubberImageBtn) {
         removeScrubberImageBtn.addEventListener("click", () => {
             if (scrubberImagePreview) {
-                scrubberImagePreview.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.85rem;">Превью изображения</span>';
+                const previewText = typeof t === 'function' ? t("scrubberImagePreview") : "Image preview";
+                scrubberImagePreview.innerHTML = `<span style="color: var(--text-secondary); font-size: 0.85rem;">${previewText}</span>`;
             }
-            if (scrubberImageInput) {
-                scrubberImageInput.value = "";
-            }
-            if (removeScrubberImageBtn) {
-                removeScrubberImageBtn.style.display = "none";
-            }
+            if (scrubberImageInput) scrubberImageInput.value = "";
+            if (removeScrubberImageBtn) removeScrubberImageBtn.style.display = "none";
             chrome.storage.local.get(["progressBarColors"], (result) => {
                 const colors = result.progressBarColors || {
                     progressColor: "#ff0000",
@@ -712,7 +705,8 @@ function setupEventListeners() {
             if (scrubberColorContainer) scrubberColorContainer.style.display = "block";
             if (scrubberImageContainer) scrubberImageContainer.style.display = "none";
             if (scrubberImagePreview) {
-                scrubberImagePreview.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.85rem;">Превью изображения</span>';
+                const previewText = typeof t === 'function' ? t("scrubberImagePreview") : "Image preview";
+                scrubberImagePreview.innerHTML = `<span style="color: var(--text-secondary); font-size: 0.85rem;">${previewText}</span>`;
             }
             if (scrubberImageInput) scrubberImageInput.value = "";
             if (removeScrubberImageBtn) removeScrubberImageBtn.style.display = "none";
@@ -732,11 +726,10 @@ function setupEventListeners() {
     if (hideControlsShortcut) {
         let isRecording = false;
         
-        // При фокусе на поле начинаем запись
         hideControlsShortcut.addEventListener("focus", function(e) {
             isRecording = true;
             hideControlsShortcut.value = "";
-            hideControlsShortcut.placeholder = "Нажмите комбинацию клавиш...";
+            hideControlsShortcut.placeholder = typeof t === 'function' ? t("shortcutPlaceholder") : "Press key combination...";
         });
         
         // При потере фокуса прекращаем запись

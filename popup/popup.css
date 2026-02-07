@@ -62,6 +62,37 @@ body {
   gap: 0.6rem;
 }
 
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.75rem;
+}
+
+.lang-switch-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+}
+
+.lang-switch-btn:hover {
+  color: var(--primary-accent);
+}
+
+.lang-switch-btn.active {
+  color: var(--primary-accent);
+  font-weight: 600;
+}
+
+.lang-switch-sep {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
 .header-icon {
   width: 32px;
   height: 32px;
@@ -210,4 +241,71 @@ input:checked + .slider:before {
   margin-top: 0.7rem;
   text-align: center;
   text-shadow: 0 1px 4px #2c0000;
+}
+
+/* Экран выбора языка */
+.lang-selector {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-mid), var(--bg-gradient-end));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.lang-selector-content {
+  text-align: center;
+  width: 100%;
+}
+
+.lang-selector-logo {
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 0 12px var(--primary-accent));
+  margin-bottom: 1rem;
+}
+
+.lang-selector-title {
+  font-size: 1.1rem;
+  color: var(--primary-accent);
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.lang-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.lang-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 12px 20px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--border-radius-md);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+}
+
+.lang-btn:hover {
+  background: var(--primary-accent);
+  border-color: var(--primary-accent);
+  color: #fff;
+  transform: scale(1.02);
+}
+
+.lang-flag {
+  font-size: 1.3rem;
 } 
