@@ -567,14 +567,13 @@ function createSpeedToggleButton() {
     speedToggleButton = document.createElement('button');
     speedToggleButton.className = 'yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-button';
     speedToggleButton.title = 'Toggle Shorts Speed (1x/выбранная)';
-    speedToggleButton.style.cssText = 'width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;';
+    speedToggleButton.style.cssText = 'width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; background-color: rgba(255, 255, 255, 0.1); border: none; color: #fff; transform: none;';
     
     // Создаём иконку внутри кнопки (как у других кнопок YouTube)
-    const iconDiv = document.createElement('div');
+    const iconDiv = document.createElement('span');
     iconDiv.className = 'yt-spec-button-shape-next__icon';
-    iconDiv.style.cssText = 'width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;';
-    iconDiv.textContent = '⏩';
-    iconDiv.style.fontSize = '20px';
+    iconDiv.style.cssText = 'width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: currentColor;';
+    iconDiv.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M5 6v12l8-6-8-6zm8 0v12l8-6-8-6z"></path></svg>';
     
     speedToggleButton.appendChild(iconDiv);
     
@@ -608,13 +607,19 @@ function updateSpeedToggleButton(speed) {
         if (iconDiv) {
             iconDiv.style.color = '#3ea6ff';
         }
-        speedToggleButton.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+        speedToggleButton.style.backgroundColor = 'rgba(62, 166, 255, 0.18)';
+        speedToggleButton.style.border = 'none';
+        speedToggleButton.style.color = '#3ea6ff';
+        speedToggleButton.style.transform = 'none';
     } else {
         // Неактивное состояние - стандартный цвет
         if (iconDiv) {
-            iconDiv.style.color = '';
+            iconDiv.style.color = '#ffffff';
         }
-        speedToggleButton.style.backgroundColor = '';
+        speedToggleButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        speedToggleButton.style.border = 'none';
+        speedToggleButton.style.color = '#ffffff';
+        speedToggleButton.style.transform = 'none';
     }
 }
 function injectSpeedToggleButton() {
