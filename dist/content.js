@@ -5,6 +5,12 @@ const VIDEOS_LIST_SELECTORS = [
     ".reel-video-in-sequence",
     ".reel-video-in-sequence-new",
 ];
+const SHORTS_ACTION_BAR_SELECTOR = "reel-action-bar-view-model";
+const SHORTS_ACTIONS_SELECTORS = [
+    SHORTS_ACTION_BAR_SELECTOR,
+    "ytd-reel-player-overlay-renderer #actions",
+    "#actions",
+];
 const CURRENT_SHORT_SELECTOR = "ytd-reel-video-renderer";
 const NEXT_BUTTON_SELECTOR = "#navigation-button-down > ytd-button-renderer > yt-button-shape > button";
 const PREVIOUS_BUTTON_SELECTOR = "#navigation-button-up > ytd-button-renderer > yt-button-shape > button";
@@ -27,7 +33,6 @@ const RETRY_DELAY_MS = 500;
 let shortsSpeedEnabled = true; // Включена ли функция ускорения для Shorts
 let shortsSpeedState = 1; // 1x или выбранная скорость
 let selectedSpeed = 2; // скорость для ускорения по умолчанию
-let speedOverlay = null;
 let speedToggleButton = null;
 let speedToggleButtonContainer = null;
 const SPEED_OPTIONS = [1.2, 1.5, 1.7, 2, 2.5];
@@ -77,6 +82,7 @@ async function checkForNewShort() {
         removeSpeedUI();
         return;
     }
+    refreshShortsSpeedUI();
     if (!applicationIsOn)
         return;
     const currentShort = findShortContainer();
@@ -113,23 +119,6 @@ async function checkForNewShort() {
     }
     if (currentVideoElement?.hasAttribute("loop") && applicationIsOn) {
         currentVideoElement.removeAttribute("loop");
-    }
-    if (isShortsPage() && currentVideoElement) {
-        // Применяем скорость только если функция включена
-        if (shortsSpeedEnabled) {
-            setShortsPlaybackSpeed(shortsSpeedState);
-            injectSpeedToggleButton();
-        } else {
-            // Если функция выключена, сбрасываем скорость на 1x и скрываем кнопку
-            if (shortsSpeedState !== 1) {
-                currentVideoElement.playbackRate = 1;
-                shortsSpeedState = 1;
-            }
-            removeSpeedUI();
-        }
-    } else {
-        // Удаляем кнопку, если не на странице Shorts или нет видео элемента
-        removeSpeedUI();
     }
 }
 function shortEnded(e) {
@@ -212,21 +201,118 @@ async function waitForNextShort(retries = 5, delay = 500) {
     return null;
 }
 function isShortsPage() {
-    // Проверяем URL - страница Shorts должна содержать /shorts/
-    const url = window.location.href;
-    if (!url.includes('/shorts/')) {
-        return false;
+    const path = window.location.pathname;
+    if (path === "/shorts" || path.startsWith("/shorts/")) return true;
+    if (document.querySelector("ytd-shorts, #shorts-container, ytd-reel-video-renderer, reel-action-bar-view-model")) {
+        return true;
     }
-    // Дополнительная проверка наличия элементов Shorts на странице
-    let containsShortElements = false;
     for (let i = 0; i < VIDEOS_LIST_SELECTORS.length; i++) {
-        const doesPageHaveAShort = document.querySelector(VIDEOS_LIST_SELECTORS[i]);
-        if (doesPageHaveAShort) {
-            containsShortElements = true;
-            break;
+        if (document.querySelector(VIDEOS_LIST_SELECTORS[i])) return true;
+    }
+    return false;
+}
+function deepQueryAll(selector, root = document) {
+    const found = [];
+    const visited = new Set();
+    const walk = (node) => {
+        if (!node || visited.has(node)) return;
+        visited.add(node);
+        if (node.querySelectorAll) {
+            node.querySelectorAll(selector).forEach((el) => found.push(el));
+            node.querySelectorAll("*").forEach((el) => {
+                if (el.shadowRoot) walk(el.shadowRoot);
+            });
+        }
+        if (node.shadowRoot) walk(node.shadowRoot);
+    };
+    walk(root);
+    return found;
+}
+function pickVisibleElement(elements) {
+    if (!elements.length) return null;
+    if (elements.length === 1) return elements[0];
+    let best = elements[0];
+    let bestScore = -Infinity;
+    for (const el of elements) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 8 || rect.height < 8) continue;
+        const score = -Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2);
+        if (score > bestScore) {
+            bestScore = score;
+            best = el;
         }
     }
-    return containsShortElements;
+    return best;
+}
+function findShortsActionBar() {
+    return pickVisibleElement(deepQueryAll(SHORTS_ACTION_BAR_SELECTOR));
+}
+function getActionBarButtonsHost(actionBar) {
+    if (!actionBar) return null;
+    const firstButton = actionBar.querySelector(
+        "button, yt-button-shape, ytd-button-renderer, ytd-like-button-renderer"
+    );
+    if (!firstButton) return actionBar;
+    let parent = firstButton.parentElement;
+    while (parent && parent !== actionBar) {
+        const siblings = [...(parent.parentElement?.children || [])].filter((node) =>
+            node.querySelector?.("button, yt-button-shape, ytd-button-renderer, ytd-like-button-renderer")
+        );
+        if (siblings.length >= 2) return parent.parentElement;
+        parent = parent.parentElement;
+    }
+    return actionBar;
+}
+function findActiveShortRenderer() {
+    return (
+        document.querySelector("ytd-reel-video-renderer[is-active]") ||
+        document.querySelector("ytd-reel-video-renderer.is-active") ||
+        pickVisibleElement([...document.querySelectorAll("ytd-reel-video-renderer")]) ||
+        null
+    );
+}
+function findShortsActionsContainer(rendererNode) {
+    const actionBar = findShortsActionBar();
+    if (actionBar) return getActionBarButtonsHost(actionBar);
+    if (!rendererNode) return null;
+    for (const selector of SHORTS_ACTIONS_SELECTORS) {
+        const container = rendererNode.querySelector(selector);
+        if (container) return getActionBarButtonsHost(container) || container;
+    }
+    return null;
+}
+function syncShortsVideoFromActiveReel() {
+    const reel = findActiveShortRenderer();
+    if (reel) {
+        const video = reel.querySelector("video");
+        if (video) {
+            currentVideoElement = video;
+            return;
+        }
+    }
+    const fallbackVideo = document.querySelector(
+        "#shorts-player video, ytd-shorts video.html5-main-video, ytd-shorts video"
+    );
+    if (fallbackVideo) currentVideoElement = fallbackVideo;
+}
+function refreshShortsSpeedUI() {
+    if (!isShortsPage()) {
+        removeSpeedUI();
+        return;
+    }
+    syncShortsVideoFromActiveReel();
+    if (!shortsSpeedEnabled) {
+        if (currentVideoElement && shortsSpeedState !== 1) {
+            currentVideoElement.playbackRate = 1;
+            shortsSpeedState = 1;
+        }
+        removeSpeedUI();
+        return;
+    }
+    if (!currentVideoElement) return;
+    currentVideoElement.playbackRate = shortsSpeedState;
+    injectSpeedToggleButton();
+    updateSpeedToggleButton(shortsSpeedState);
 }
 // ------------------------------
 // INITIATION AND SETTINGS FETCH
@@ -241,6 +327,9 @@ function isShortsPage() {
     checkForNewShort();
     checkApplicationState();
     setInterval(checkForNewShort, RETRY_DELAY_MS);
+    setInterval(refreshShortsSpeedUI, RETRY_DELAY_MS);
+    
+    const scheduleShortsSpeedUIRefresh = () => setTimeout(refreshShortsSpeedUI, 100);
     
     // Используем MutationObserver для отслеживания новых Shorts (как в оригинальном расширении)
     const observer = new MutationObserver((mutationsList) => {
@@ -248,14 +337,15 @@ function isShortsPage() {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1) { // It's an element
-                        if (node.matches && node.matches('ytd-reel-video-renderer')) {
-                            // Небольшая задержка для гарантии, что DOM готов
-                            setTimeout(() => injectSpeedToggleButton(), 100);
+                        if (node.matches && (
+                            node.matches('ytd-reel-video-renderer') ||
+                            node.matches('ytd-shorts') ||
+                            node.matches(SHORTS_ACTION_BAR_SELECTOR)
+                        )) {
+                            scheduleShortsSpeedUIRefresh();
                         }
-                        if (node.querySelectorAll) {
-                            node.querySelectorAll('ytd-reel-video-renderer').forEach(() => {
-                                setTimeout(() => injectSpeedToggleButton(), 100);
-                            });
+                        if (node.querySelectorAll?.(`ytd-reel-video-renderer, ytd-shorts, ${SHORTS_ACTION_BAR_SELECTOR}`)) {
+                            scheduleShortsSpeedUIRefresh();
                         }
                     }
                 });
@@ -265,10 +355,7 @@ function isShortsPage() {
     
     observer.observe(document.body, { childList: true, subtree: true });
     
-    // Пробуем добавить кнопку к уже существующим Shorts
-    document.querySelectorAll('ytd-reel-video-renderer').forEach(() => {
-        setTimeout(() => injectSpeedToggleButton(), 100);
-    });
+    scheduleShortsSpeedUIRefresh();
     // Проверка при загрузке страницы - удаляем кнопку, если не на странице Shorts
     if (!isShortsPage()) {
         removeSpeedUI();
@@ -281,9 +368,8 @@ function isShortsPage() {
             lastUrl = url;
             // Небольшая задержка для проверки после изменения URL
             setTimeout(() => {
-                if (!isShortsPage()) {
-                    removeSpeedUI();
-                }
+                if (!isShortsPage()) removeSpeedUI();
+                else refreshShortsSpeedUI();
             }, 100);
         }
     });
@@ -292,9 +378,8 @@ function isShortsPage() {
     // Также отслеживаем события popstate (навигация браузера)
     window.addEventListener('popstate', () => {
         setTimeout(() => {
-            if (!isShortsPage()) {
-                removeSpeedUI();
-            }
+            if (!isShortsPage()) removeSpeedUI();
+            else refreshShortsSpeedUI();
         }, 100);
     });
     function checkApplicationState() {
@@ -396,10 +481,7 @@ function isShortsPage() {
             let newShortsSpeedEnabled = result["shortsSpeedEnabled"]?.newValue;
             if (newShortsSpeedEnabled !== undefined) {
                 shortsSpeedEnabled = newShortsSpeedEnabled;
-                // Если функция выключена, сбрасываем скорость на 1x
-                if (!shortsSpeedEnabled && currentVideoElement && shortsSpeedState !== 1) {
-                    setShortsPlaybackSpeed(1);
-                }
+                refreshShortsSpeedUI();
             }
             let newShortsSpeedShortcut = result["shortsSpeedShortcut"]?.newValue;
             if (newShortsSpeedShortcut != undefined) {
@@ -471,7 +553,6 @@ function setShortsPlaybackSpeed(speed) {
     if (currentVideoElement) {
         currentVideoElement.playbackRate = speed;
         shortsSpeedState = speed;
-        showSpeedOverlay(speed);
         updateSpeedToggleButton(speed);
     }
 }
@@ -481,80 +562,6 @@ function toggleShortsPlaybackSpeed() {
     if (!shortsSpeedEnabled) return;
     const newSpeed = shortsSpeedState === 1 ? selectedSpeed : 1;
     setShortsPlaybackSpeed(newSpeed);
-}
-function showSpeedOverlay(speed) {
-    // Находим контейнер действий для размещения overlay
-    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
-    if (!activeShort) return;
-    
-    const actionsContainer = activeShort.querySelector('ytd-reel-player-overlay-renderer #actions');
-    if (!actionsContainer) return;
-    
-    if (!speedOverlay) {
-        // Создаём контейнер для overlay (как у кнопок YouTube)
-        speedOverlay = document.createElement('div');
-        speedOverlay.className = 'ytplus-speed-overlay';
-        speedOverlay.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0;';
-        
-        // Создаём кнопку-индикатор в стиле YouTube
-        const overlayButton = document.createElement('button');
-        overlayButton.className = 'yt-spec-button-shape-next yt-spec-button-shape-next--tonal yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-m yt-spec-button-shape-next--icon-button';
-        overlayButton.style.cssText = 'width: 48px; height: 48px; border-radius: 50%; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;';
-        overlayButton.id = 'ytplus-speed-overlay-button';
-        
-        // Создаём текст внутри кнопки
-        const overlayText = document.createElement('div');
-        overlayText.className = 'yt-spec-button-shape-next__icon';
-        overlayText.style.cssText = 'width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500;';
-        overlayText.id = 'ytplus-speed-overlay-text';
-        
-        overlayButton.appendChild(overlayText);
-        speedOverlay.appendChild(overlayButton);
-        
-        // Добавляем overlay в контейнер действий, если его там ещё нет
-        if (!actionsContainer.contains(speedOverlay)) {
-            // Вставляем перед кнопкой скорости, если она есть
-            const speedButton = actionsContainer.querySelector('.ytplus-speed-button');
-            if (speedButton) {
-                actionsContainer.insertBefore(speedOverlay, speedButton);
-            } else {
-                // Если кнопки нет, вставляем в начало
-                actionsContainer.prepend(speedOverlay);
-            }
-        }
-    }
-    
-    const overlayText = speedOverlay.querySelector('#ytplus-speed-overlay-text');
-    const overlayButton = speedOverlay.querySelector('#ytplus-speed-overlay-button');
-    
-    if (overlayText) {
-        overlayText.textContent = speed + 'x';
-    }
-    
-    // Обновляем стиль в зависимости от состояния
-    if (speed !== 1) {
-        // Активное состояние - подсвечиваем
-        if (overlayText) {
-            overlayText.style.color = '#3ea6ff';
-        }
-        if (overlayButton) {
-            overlayButton.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
-        }
-    } else {
-        // Неактивное состояние - стандартный цвет
-        if (overlayText) {
-            overlayText.style.color = '';
-        }
-        if (overlayButton) {
-            overlayButton.style.backgroundColor = '';
-        }
-    }
-    
-    speedOverlay.style.opacity = '1';
-    clearTimeout(speedOverlay._hideTimeout);
-    speedOverlay._hideTimeout = setTimeout(() => {
-        if (speedOverlay) speedOverlay.style.opacity = '0';
-    }, 1200);
 }
 function createSpeedToggleButton() {
     if (speedToggleButtonContainer) return;
@@ -623,48 +630,40 @@ function updateSpeedToggleButton(speed) {
     }
 }
 function injectSpeedToggleButton() {
-    if (!currentVideoElement) return;
-    // Проверяем, включена ли функция ускорения
     if (!shortsSpeedEnabled) {
         removeSpeedUI();
         return;
     }
-    
-    // Находим активный Short (как в оригинальном расширении)
-    const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
-    if (!activeShort) {
-        // Если активный не найден, пробуем найти любой Short
-        const anyShort = document.querySelector('ytd-reel-video-renderer');
-        if (!anyShort) return;
-        addButtonToPlayer(anyShort);
+    if (!isShortsPage()) return;
+    if (!currentVideoElement) syncShortsVideoFromActiveReel();
+    if (!currentVideoElement) return;
+    const actionBar = findShortsActionBar();
+    if (actionBar) {
+        mountSpeedButton(getActionBarButtonsHost(actionBar));
         return;
     }
-    
-    addButtonToPlayer(activeShort);
+    const activeShort = findActiveShortRenderer();
+    if (activeShort) mountSpeedButton(findShortsActionsContainer(activeShort));
 }
 
-function addButtonToPlayer(rendererNode) {
-    // Ищем контейнер #actions внутри ytd-reel-player-overlay-renderer (как в оригинальном расширении)
-    const actionsContainer = rendererNode.querySelector('ytd-reel-player-overlay-renderer #actions');
-    
-    // Если контейнер не найден или кнопка уже добавлена, выходим
-    if (!actionsContainer || rendererNode.querySelector('.ytplus-speed-button')) {
+function mountSpeedButton(actionsContainer) {
+    if (!actionsContainer) return;
+    if (actionsContainer.querySelector(".ytplus-speed-button")) {
+        updateSpeedToggleButton(shortsSpeedState);
         return;
     }
-    
-    createSpeedToggleButton();
-    
-    // Добавляем класс для идентификации
-    speedToggleButtonContainer.classList.add('ytplus-speed-button');
-    
-    // Вставляем кнопку в начало контейнера (сверху) используя prepend (как в оригинале)
+    if (speedToggleButtonContainer?.parentNode) {
+        speedToggleButtonContainer.parentNode.removeChild(speedToggleButtonContainer);
+    } else {
+        createSpeedToggleButton();
+    }
+    if (!speedToggleButtonContainer) return;
+    speedToggleButtonContainer.classList.add("ytplus-speed-button");
     actionsContainer.prepend(speedToggleButtonContainer);
-    
     updateSpeedToggleButton(shortsSpeedState);
 }
 function removeSpeedUI() {
-    if (speedOverlay && speedOverlay.parentNode) speedOverlay.parentNode.removeChild(speedOverlay);
-    speedOverlay = null;
+    document.querySelectorAll(".ytplus-speed-overlay").forEach((el) => el.remove());
     if (speedToggleButtonContainer && speedToggleButtonContainer.parentNode) {
         speedToggleButtonContainer.parentNode.removeChild(speedToggleButtonContainer);
     }
@@ -675,7 +674,9 @@ function removeSpeedUI() {
 (function shortsSpeedShortcutListener() {
     document.addEventListener('keydown', function(e) {
         if (!e.key) return;
-        if (!isShortsPage() || !currentVideoElement) return;
+        if (!isShortsPage()) return;
+        if (!currentVideoElement) syncShortsVideoFromActiveReel();
+        if (!currentVideoElement) return;
         // Проверяем, включена ли функция ускорения
         if (!shortsSpeedEnabled) return;
         
